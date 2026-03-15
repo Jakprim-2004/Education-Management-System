@@ -1,0 +1,86 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { CheckCircle } from "lucide-react";
+import kuLogo from "@/assets/KU_Logo_PNG.png";
+
+export default function ForgotPassword() {
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Mock send reset email
+    setSent(true);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-slate-100">
+      <Card className="w-full max-w-md p-8 shadow-lg border border-slate-200">
+        <div className="mb-6">
+          <div className="flex flex-col items-center justify-center gap-2 mb-2">
+            <img src={kuLogo} alt="Kasetsart University" className="w-16 h-16 object-contain" />
+            <h1 className="text-2xl font-bold text-slate-900">ลืมรหัสผ่าน</h1>
+          </div>
+          <p className="text-center text-sm text-slate-600 mt-1">
+            กรอกอีเมลที่ใช้สมัครสมาชิก ระบบจะส่งลิงก์รีเซ็ตรหัสผ่านให้
+          </p>
+        </div>
+
+        {!sent ? (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
+                อีเมล / รหัสนิสิต
+              </label>
+              <Input
+                id="email"
+                type="text"
+                placeholder="เช่น student@ku.ac.th"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <Button type="submit" className="w-full">
+              ส่งลิงก์รีเซ็ตรหัสผ่าน
+            </Button>
+          </form>
+        ) : (
+          <div className="text-center py-6">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle size={32} className="text-green-600" />
+              </div>
+            </div>
+            <h2 className="text-lg font-bold text-slate-900 mb-2">ส่งอีเมลแล้ว!</h2>
+            <p className="text-sm text-slate-600 mb-1">
+              ระบบได้ส่งลิงก์รีเซ็ตรหัสผ่านไปที่
+            </p>
+            <p className="text-sm font-bold text-primary mb-4">{email}</p>
+            <p className="text-xs text-slate-500">
+              กรุณาตรวจสอบอีเมล (รวมถึงโฟลเดอร์ Spam) แล้วคลิกลิงก์เพื่อตั้งรหัสผ่านใหม่
+            </p>
+          </div>
+        )}
+
+        <div className="mt-6 pt-4 border-t border-slate-200 text-center space-y-2">
+          <p className="text-sm text-slate-600">
+            <Link to="/" className="text-primary font-medium hover:underline">
+              ← กลับหน้าเข้าสู่ระบบ
+            </Link>
+          </p>
+          <p className="text-sm text-slate-600">
+            ยังไม่มีบัญชี?{" "}
+            <Link to="/register" className="text-primary font-medium hover:underline">
+              สมัครสมาชิก
+            </Link>
+          </p>
+        </div>
+      </Card>
+    </div>
+  );
+}
