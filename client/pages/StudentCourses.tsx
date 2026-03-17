@@ -1,4 +1,4 @@
-﻿import Layout from "@/components/Layout";
+import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart3, Clock, BookOpen, MessageSquare } from "lucide-react";
@@ -167,9 +167,6 @@ export default function StudentCourses() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button size="sm" className="flex-1">
-                      เข้าเรียน
-                    </Button>
                     <Button size="sm" variant="outline" className="flex-1">
                       ดูรายละเอียด
                     </Button>
