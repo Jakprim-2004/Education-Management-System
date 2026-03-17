@@ -1,7 +1,15 @@
+import { useState } from "react";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart3, Clock, BookOpen, MessageSquare } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { BarChart3, Clock, BookOpen, MessageSquare, X } from "lucide-react";
 
 interface StudentCourse {
   id: string;
@@ -16,6 +24,8 @@ interface StudentCourse {
 }
 
 export default function StudentCourses() {
+  const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null);
+
   const courses: StudentCourse[] = [
     {
       id: "1",
@@ -167,7 +177,12 @@ export default function StudentCourses() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setSelectedCourse(course)}
+                    >
                       ดูรายละเอียด
                     </Button>
                   </div>
@@ -211,6 +226,97 @@ export default function StudentCourses() {
               ))}
           </div>
         </Card>
+
+        {/* Course Details Modal */}
+        <Dialog open={!!selectedCourse} onOpenChange={() => setSelectedCourse(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">
+                {selectedCourse?.name}
+              </DialogTitle>
+              <DialogClose />
+            </DialogHeader>
+            {selectedCourse && (
+              <div className="space-y-6">
+                {/* Basic Info */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-slate-600">รหัสวิชา</p>
+                    <p className="text-lg font-bold text-primary">
+                      {selectedCourse.code}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-600">อาจารย์ผู้สอน</p>
+                    <p className="text-lg font-medium text-slate-900">
+                      {selectedCourse.instructor}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-600">เกรด</p>
+                    <p className="text-lg font-bold text-primary">
+                      {selectedCourse.grade}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-600">เวลาเรียน</p>
+                    <p className="text-lg font-medium text-slate-900">
+                      {selectedCourse.schedule}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Progress */}
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <p className="text-sm font-medium text-slate-900">
+                      ความก้าวหน้า
+                    </p>
+                    <p className="text-sm font-bold text-slate-900">
+                      {selectedCourse.progress}%
+                    </p>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-3">
+                    <div
+                      className="bg-primary h-3 rounded-full transition-all"
+                      style={{ width: `${selectedCourse.progress}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Status and Announcements */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-slate-50 rounded-lg">
+                    <p className="text-sm text-slate-600">สถานะ</p>
+                    <p className={`text-sm font-bold mt-1 ${
+                      selectedCourse.status === "completed"
+                        ? "text-green-600"
+                        : "text-blue-600"
+                    }`}>
+                      {selectedCourse.status === "completed"
+                        ? "เรียนจบแล้ว"
+                        : "กำลังเรียน"}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-lg">
+                    <p className="text-sm text-slate-600">ประกาศทั้งหมด</p>
+                    <p className="text-sm font-bold text-slate-900 mt-1">
+                      {selectedCourse.announcement} รายการ
+                    </p>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-2 pt-4 border-t border-slate-200">
+                  <Button className="flex-1">ดูรายการประกาศ</Button>
+                  <Button variant="outline" className="flex-1">
+                    ดูเนื้อหาวิชา
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
