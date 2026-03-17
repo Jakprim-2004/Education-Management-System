@@ -1,4 +1,4 @@
-﻿import Layout from "@/components/Layout";
+import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, BookOpen, BarChart3 } from "lucide-react";
@@ -108,23 +108,6 @@ export default function TeacherDashboard() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card className="p-6 border border-slate-200">
-          <h3 className="font-bold text-slate-900 mb-4">ลิงค์ด่วน</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            <Link to="/students/teacher">
-              <Button className="w-full justify-start" variant="outline">
-                ดูรายชื่อนิสิต
-              </Button>
-            </Link>
-            <Link to="/profile/teacher">
-              <Button className="w-full justify-start" variant="outline">
-                ดูโปรไฟล์
-              </Button>
-            </Link>
           </div>
         </Card>
       </div>

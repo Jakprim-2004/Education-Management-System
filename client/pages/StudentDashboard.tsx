@@ -1,4 +1,4 @@
-﻿import Layout from "@/components/Layout";
+import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Clock, CheckCircle, AlertCircle } from "lucide-react";
@@ -141,33 +141,6 @@ export default function StudentDashboard() {
               </div>
             </Card>
           </div>
-
-          {/* Quick Actions */}
-          <Card className="p-6 border border-slate-200 h-fit">
-            <h3 className="font-bold text-slate-900 mb-4">ลิงค์ด่วน</h3>
-            <div className="space-y-2">
-              <Link to="/course-planner/student">
-                <Button className="w-full justify-start" variant="outline">
-                  วางแผนวิชา
-                </Button>
-              </Link>
-              <Link to="/catalog/student">
-                <Button className="w-full justify-start" variant="outline">
-                  ค้นหาวิชา
-                </Button>
-              </Link>
-              <Link to="/registration/student">
-                <Button className="w-full justify-start" variant="outline">
-                  ตรวจสอบการลงทะเบียน
-                </Button>
-              </Link>
-              <Link to="/profile/student">
-                <Button className="w-full justify-start" variant="outline">
-                  ดูโปรไฟล์
-                </Button>
-              </Link>
-            </div>
-          </Card>
         </div>
       </div>
     </Layout>
