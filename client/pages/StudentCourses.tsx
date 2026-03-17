@@ -408,7 +408,6 @@ export default function StudentCourses() {
                       >
                         ดูรายการประกาศ
                       </Button>
-                      <Button className="flex-1">ดูเนื้อหาวิชา</Button>
                     </div>
                   </div>
                 )}
