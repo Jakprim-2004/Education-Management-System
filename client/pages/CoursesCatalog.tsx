@@ -294,7 +294,6 @@ export default function CoursesCatalog() {
               </div>
 
               <div className="flex gap-2">
-                <Button className="flex-1">แก้ไขข้อมูลรายวิชา</Button>
                 <Button
                   variant="outline"
                   className="flex-1"
