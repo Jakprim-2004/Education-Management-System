@@ -1,7 +1,7 @@
-﻿import Layout from "@/components/Layout";
+import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, BookOpen, BarChart3 } from "lucide-react";
+import { Users, BookOpen, BarChart3, Bell } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function TeacherDashboard() {
@@ -9,6 +9,33 @@ export default function TeacherDashboard() {
     { code: "01418221", name: "โครงสร้างข้อมูล", students: 45, status: "Active" },
     { code: "01418222", name: "อัลกอริทึม", students: 38, status: "Active" },
     { code: "01418223", name: "ระบบฐานข้อมูล", students: 32, status: "Active" },
+  ];
+
+  const announcements = [
+    {
+      id: 1,
+      title: "ส่งคะแนนวิชาต่างๆให้ 15 มีนาคมนี้",
+      date: "15 มีนาคม 2025",
+      type: "important",
+    },
+    {
+      id: 2,
+      title: "ประชุมจัดทำหลักสูตรใหม่สัปดาห์หน้า",
+      date: "14 มีนาคม 2025",
+      type: "update",
+    },
+    {
+      id: 3,
+      title: "เปิดให้ลงทะเบียนวิชาเลือกแล้ว",
+      date: "12 มีนาคม 2025",
+      type: "update",
+    },
+    {
+      id: 4,
+      title: "การสอบปลายเทอมขยายไปถึง 1 เมษายน",
+      date: "10 มีนาคม 2025",
+      type: "important",
+    },
   ];
 
   return (
@@ -111,20 +138,35 @@ export default function TeacherDashboard() {
           </div>
         </Card>
 
-        {/* Quick Actions */}
+        {/* Announcements */}
         <Card className="p-6 border border-slate-200">
-          <h3 className="font-bold text-slate-900 mb-4">ลิงค์ด่วน</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            <Link to="/students/teacher">
-              <Button className="w-full justify-start" variant="outline">
-                ดูรายชื่อนิสิต
-              </Button>
-            </Link>
-            <Link to="/profile/teacher">
-              <Button className="w-full justify-start" variant="outline">
-                ดูโปรไฟล์
-              </Button>
-            </Link>
+          <div className="flex items-center gap-2 mb-4">
+            <Bell size={20} className="text-slate-900" />
+            <h3 className="font-bold text-slate-900">ประกาศและข่าวสาร</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {announcements.map((announcement) => (
+              <div
+                key={announcement.id}
+                className="p-3 border border-slate-200 rounded-lg"
+              >
+                <div className="flex gap-2 mb-2">
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded font-medium whitespace-nowrap ${
+                      announcement.type === "important"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-blue-100 text-blue-700"
+                    }`}
+                  >
+                    {announcement.type === "important" ? "สำคัญ" : "ข่าวสาร"}
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-slate-900">
+                  {announcement.title}
+                </p>
+                <p className="text-xs text-slate-500 mt-2">{announcement.date}</p>
+              </div>
+            ))}
           </div>
         </Card>
       </div>

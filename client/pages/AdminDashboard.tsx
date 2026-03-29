@@ -1,7 +1,7 @@
-﻿import Layout from "@/components/Layout";
+import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, BookOpen, Upload, Settings } from "lucide-react";
+import { Users, BookOpen, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function AdminDashboard() {
@@ -93,29 +93,6 @@ export default function AdminDashboard() {
               </Button>
               <Button className="w-full justify-start" variant="outline">
                 จัดการบทบาท
-              </Button>
-            </div>
-          </Card>
-
-          {/* System Settings */}
-          <Card className="p-6 border border-slate-200">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">ตั้งค่าระบบ</h2>
-                <p className="text-sm text-slate-600 mt-1">กำหนดค่าพารามิเตอร์ระบบ</p>
-              </div>
-              <Settings className="text-primary" size={24} />
-            </div>
-
-            <div className="space-y-2">
-              <Button className="w-full justify-start" variant="outline">
-                การตั้งค่าระบบ
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                ตั้งค่าอีเมล
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                สำรองและคืนค่า
               </Button>
             </div>
           </Card>

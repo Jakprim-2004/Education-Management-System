@@ -1,7 +1,7 @@
-﻿import Layout from "@/components/Layout";
+import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { BookOpen, Clock, CheckCircle, AlertCircle, Bell } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function StudentDashboard() {
@@ -26,6 +26,33 @@ export default function StudentDashboard() {
       instructor: "ดร. กิจเสริมศักดิ์ เล่นชอบ",
       status: "completed",
       grade: "A-",
+    },
+  ];
+
+  const announcements = [
+    {
+      id: 1,
+      title: "ลดราคาค่าหอพักเทอมต่อไป",
+      date: "15 มีนาคม 2025",
+      type: "important",
+    },
+    {
+      id: 2,
+      title: "การขยายเวลาการสอบกลางเทอม",
+      date: "14 มีนาคม 2025",
+      type: "update",
+    },
+    {
+      id: 3,
+      title: "เปิดลงทะเบียนวิชาเลือกสำหรับเทอมถัดไป",
+      date: "12 มีนาคม 2025",
+      type: "update",
+    },
+    {
+      id: 4,
+      title: "เลื่อนวันสอบปลายเทอมไปสัปดาห์ที่ 1 เมษายน",
+      date: "10 มีนาคม 2025",
+      type: "important",
     },
   ];
 
@@ -142,30 +169,35 @@ export default function StudentDashboard() {
             </Card>
           </div>
 
-          {/* Quick Actions */}
+          {/* Announcements */}
           <Card className="p-6 border border-slate-200 h-fit">
-            <h3 className="font-bold text-slate-900 mb-4">ลิงค์ด่วน</h3>
-            <div className="space-y-2">
-              <Link to="/course-planner/student">
-                <Button className="w-full justify-start" variant="outline">
-                  วางแผนวิชา
-                </Button>
-              </Link>
-              <Link to="/catalog/student">
-                <Button className="w-full justify-start" variant="outline">
-                  ค้นหาวิชา
-                </Button>
-              </Link>
-              <Link to="/registration/student">
-                <Button className="w-full justify-start" variant="outline">
-                  ตรวจสอบการลงทะเบียน
-                </Button>
-              </Link>
-              <Link to="/profile/student">
-                <Button className="w-full justify-start" variant="outline">
-                  ดูโปรไฟล์
-                </Button>
-              </Link>
+            <div className="flex items-center gap-2 mb-4">
+              <Bell size={20} className="text-slate-900" />
+              <h3 className="font-bold text-slate-900">ประกาศและข่าวสาร</h3>
+            </div>
+            <div className="space-y-3">
+              {announcements.map((announcement) => (
+                <div
+                  key={announcement.id}
+                  className="pb-3 border-b border-slate-200 last:border-b-0"
+                >
+                  <div className="flex gap-2 mb-1">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded font-medium whitespace-nowrap ${
+                        announcement.type === "important"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-blue-100 text-blue-700"
+                      }`}
+                    >
+                      {announcement.type === "important" ? "สำคัญ" : "ข่าวสาร"}
+                    </span>
+                  </div>
+                  <p className="text-sm font-medium text-slate-900">
+                    {announcement.title}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">{announcement.date}</p>
+                </div>
+              ))}
             </div>
           </Card>
         </div>
