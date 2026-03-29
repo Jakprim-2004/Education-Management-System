@@ -1,42 +1,159 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Edit2, Save, X } from "lucide-react";
+import { Edit2, Save, X, Loader2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast"; // Typically it's in hooks, but if not we might need to adjust. Wait, in previous chats it was '@/components/ui/use-toast' or '@/hooks/use-toast'. I will use the one matching the existing files. Let's use `import { useToast } from "@/components/ui/use-toast";`
 
 export default function StudentProfile() {
   const [isEditing, setIsEditing] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [editData, setEditData] = useState<any>({});
+  const [passwordData, setPasswordData] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
 
-  const [profile, setProfile] = useState({
-    studentId: "6310000001",
-    firstName: "สมชาย",
-    lastName: "ใจดี",
-    email: "student@ku.ac.th",
-    phone: "089-123-4567",
-    department: "วิศวกรรมศาสตร์",
-    program: "วิศวกรรมคอมพิวเตอร์",
-    admissionYear: "2565",
-    gpa: "3.85",
-    totalCredits: "45",
-    academicAdvisor: "ผศ.ดร. สมศักดิ์ ใจดี",
-    address: "123 ถ.พระราม 4 แขวงตุลาคม เขตปทุมวัน กรุงเทพฯ 10330",
+  const { data: profileResponse, isLoading, isError } = useQuery({
+    queryKey: ['studentProfile'],
+    queryFn: async () => {
+      const res = await fetch("/api/profile/student");
+      if (!res.ok) throw new Error("Failed to fetch profile");
+      return res.json();
+    }
   });
 
-  const [editData, setEditData] = useState(profile);
+  const profile = profileResponse?.data || {};
+
+  // Sync editData when profile is successfully fetched or editing is toggled
+  useEffect(() => {
+    if (!isEditing && profile) {
+      setEditData(profile);
+    }
+  }, [profile, isEditing]);
+
+  const updateMutation = useMutation({
+    mutationFn: async (updatedData: any) => {
+      const res = await fetch("/api/profile/student", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedData)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to edit profile");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['studentProfile'] });
+      toast({
+        title: "สำเร็จ",
+        description: "บันทึกข้อมูลส่วนตัวเรียบร้อยแล้ว",
+        className: "bg-green-50 text-green-900 border-green-200"
+      });
+      setIsEditing(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const passwordMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch("/api/auth/change-password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to change password");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "สำเร็จ",
+        description: data.message || "เปลี่ยนรหัสผ่านสำเร็จ",
+        className: "bg-green-50 text-green-900 border-green-200"
+      });
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
 
   const handleSave = () => {
-    setProfile(editData);
-    setIsEditing(false);
+    updateMutation.mutate({
+      firstName: editData.firstName,
+      lastName: editData.lastName,
+      phone: editData.phone
+    });
   };
 
   const handleCancel = () => {
     setEditData(profile);
     setIsEditing(false);
   };
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "รหัสผ่านใหม่และการยืนยันไม่ตรงกัน",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร",
+        variant: "destructive"
+      });
+      return;
+    }
+    passwordMutation.mutate({
+      currentPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <Layout role="student">
+        <div className="flex flex-col items-center justify-center h-[50vh] text-slate-500">
+          <Loader2 className="h-10 w-10 animate-spin mb-4 text-primary" />
+          <p>กำลังโหลดโปรไฟล์...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Layout role="student">
+        <div className="p-4 bg-red-50 text-red-600 rounded-lg border border-red-200">
+          <p className="font-bold mb-1">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+          <p className="text-sm">โปรดลองรีเฟรชหน้าใหม่อีกครั้ง</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout role="student">
@@ -61,8 +178,8 @@ export default function StudentProfile() {
         {/* Profile Card */}
         <Card className="p-6 border border-slate-200">
           <div className="flex flex-col sm:flex-row gap-6 mb-6">
-            <div className="w-24 h-24 bg-primary rounded-lg flex items-center justify-center text-white text-4xl font-bold">
-              ส
+            <div className="w-24 h-24 bg-primary rounded-lg flex items-center justify-center text-white text-4xl font-bold uppercase">
+              {profile.firstName ? profile.firstName[0] : "ส"}
             </div>
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-slate-900 mb-2">
@@ -137,20 +254,16 @@ export default function StudentProfile() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  อีเมล
+                  อีเมล (แก้ไขไม่ได้)
                 </label>
-                {isEditing ? (
+                <div className="flex items-center">
                   <Input
                     type="email"
-                    value={editData.email}
-                    onChange={(e) =>
-                      setEditData({ ...editData, email: e.target.value })
-                    }
-                    className="border border-slate-300"
+                    value={profile.email}
+                    disabled
+                    className="border border-slate-200 bg-slate-50 text-slate-500"
                   />
-                ) : (
-                  <p className="text-slate-900">{profile.email}</p>
-                )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -172,7 +285,7 @@ export default function StudentProfile() {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                ที่อยู่
+                ที่อยู่ 230/1 หมู่ 1 ต.บ้านใหม่ อ.เมือง จ.ปทุมธานี 12000 
               </label>
               {isEditing ? (
                 <Input
@@ -209,33 +322,34 @@ export default function StudentProfile() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                ปีการศึกษา
+                ปีที่เข้าศึกษา (รหัส 2 ตัวแรก)
               </label>
               <p className="text-slate-900">{profile.admissionYear}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                อาจารย์ที่ปรึกษา
+                อาจารย์ที่ปรึกษา 
               </label>
-              <p className="text-slate-900">{profile.academicAdvisor}</p>
+              <p className="text-slate-900">{profile.academicAdvisor}ผศ.ดร.กิตติพงษ์ พลอยพานิชกุล</p>
             </div>
           </div>
         </Card>
 
         {/* Action Buttons */}
         {isEditing && (
-          <div className="flex gap-2">
-            <Button onClick={handleSave} className="flex items-center gap-2">
-              <Save size={16} />
-              บันทึก
-            </Button>
+          <div className="flex justify-end gap-3 mt-8">
             <Button
               variant="outline"
               onClick={handleCancel}
               className="flex items-center gap-2"
+              disabled={updateMutation.isPending}
             >
               <X size={16} />
               ยกเลิก
+            </Button>
+            <Button onClick={handleSave} className="flex items-center gap-2" disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? <Loader2 className="animate-spin w-4 h-4" /> : <Save size={16} />}
+              บันทึกการเปลี่ยนแปลง
             </Button>
           </div>
         )}
@@ -245,7 +359,7 @@ export default function StudentProfile() {
           <h3 className="text-lg font-bold text-slate-900 mb-4">
             เปลี่ยนรหัสผ่าน
           </h3>
-          <div className="space-y-4">
+          <form className="space-y-4" onSubmit={handleChangePassword}>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 รหัสผ่านเดิม
@@ -253,6 +367,8 @@ export default function StudentProfile() {
               <Input
                 type="password"
                 placeholder="••••••••"
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                 className="border border-slate-300"
               />
             </div>
@@ -263,6 +379,8 @@ export default function StudentProfile() {
               <Input
                 type="password"
                 placeholder="••••••••"
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                 className="border border-slate-300"
               />
             </div>
@@ -273,11 +391,20 @@ export default function StudentProfile() {
               <Input
                 type="password"
                 placeholder="••••••••"
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                 className="border border-slate-300"
               />
             </div>
-            <Button>อัปเดตรหัสผ่าน</Button>
-          </div>
+            <Button 
+                type="submit" 
+                disabled={passwordMutation.isPending || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                className="flex items-center gap-2"
+            >
+              {passwordMutation.isPending ? <Loader2 className="animate-spin w-4 h-4" /> : null}
+              อัปเดตรหัสผ่าน
+            </Button>
+          </form>
         </Card>
       </div>
     </Layout>

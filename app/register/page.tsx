@@ -4,12 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 
 export default function Register() {
   const router = useRouter();
+  const { toast } = useToast();
   const [form, setForm] = useState({
     studentId: "",
     firstName: "",
@@ -26,7 +28,9 @@ export default function Register() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -39,8 +43,32 @@ export default function Register() {
       return;
     }
 
-    alert("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
-    router.push("/");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "การสมัครสมาชิกล้มเหลว");
+      }
+
+      toast({
+        title: "✅ สมัครสมาชิกสำเร็จ!",
+        description: "ระบบเปิดให้คุณเข้าสู่ระบบได้แล้ว",
+      });
+      router.push("/");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -121,8 +149,8 @@ export default function Register() {
             </div>
           </div>
 
-          <Button type="submit" className="w-full">
-            สมัครสมาชิก
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "กำลังสมัครสมาชิก..." : "สมัครสมาชิก"}
           </Button>
         </form>
 

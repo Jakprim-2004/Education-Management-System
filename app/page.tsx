@@ -4,27 +4,49 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 
 export default function Login() {
   const router = useRouter();
+  const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem(
-      "user",
-      JSON.stringify({
-        email,
-        role: email.includes("teacher") ? "teacher" : email.includes("admin") ? "admin" : "student",
-      })
-    );
-    const role = email.includes("teacher") ? "teacher" : email.includes("admin") ? "admin" : "student";
-    router.push(`/dashboard/${role}`);
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+      }
+
+      localStorage.setItem("user", JSON.stringify(data.user));
+      toast({
+        title: "✅ เข้าสู่ระบบสำเร็จ!",
+        description: `ยินดีต้อนรับกลับเข้าสู่ระบบ, ${data.user.email}`,
+      });
+      router.push(`/dashboard/${data.user.role}`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -41,6 +63,11 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+              ⚠️ {error}
+            </div>
+          )}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
               อีเมล / รหัสนิสิต
@@ -89,8 +116,8 @@ export default function Login() {
             </Link>
           </div>
 
-          <Button type="submit" className="w-full">
-            เข้าสู่ระบบ
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
           </Button>
 
           <p className="text-sm text-center text-slate-600">

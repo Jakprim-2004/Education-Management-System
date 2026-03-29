@@ -12,7 +12,8 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
-import { BarChart3, Clock, BookOpen, MessageSquare } from "lucide-react";
+import { BarChart3, Clock, BookOpen, MessageSquare, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 interface Announcement {
   id: string;
@@ -38,101 +39,39 @@ export default function StudentCourses() {
   const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null);
   const [activeTab, setActiveTab] = useState<"details" | "announcements">("details");
 
-  const courses: StudentCourse[] = [
-    {
-      id: "1",
-      code: "01418221",
-      name: "โครงสร้างข้อมูล",
-      instructor: "ผศ.ดร. สมศักดิ์ ใจดี",
-      grade: "A",
-      progress: 75,
-      status: "active",
-      announcement: 3,
-      schedule: "จ 14:00-16:50 น.",
-      announcements: [
-        {
-          id: "a1",
-          title: "งานส่งโปรแกรม Assignment 3",
-          date: "15 มีนาคม 2025",
-          content: "กำหนดส่งโปรแกรมการค้นหาในทรีในวันพุธที่ 19 มีนาคม 2025 เวลา 23:59 น.",
-        },
-        {
-          id: "a2",
-          title: "เลื่อนการสอบกลางเทอม",
-          date: "12 มีนาคม 2025",
-          content: "เลื่อนการสอบกลางเทอมจากวันที่ 18 มีนาคมไปเป็นวันที่ 20 มีนาคม 2025 สัปดาห์หน้า",
-        },
-        {
-          id: "a3",
-          title: "เปิดแชทถาม-ตอบ ออนไลน์",
-          date: "10 มีนาคม 2025",
-          content: "เปิดแชทสำหรับถามข้อสงสัยเกี่ยวกับเนื้อหาโครงสร้างข้อมูล ทุกวันจันทร์-ศุกร์ 15:00-17:00 น.",
-        },
-      ],
-    },
-    {
-      id: "2",
-      code: "01418222",
-      name: "อัลกอริทึม",
-      instructor: "ผศ.ดร. ประณีต วรรณศิลป์",
-      grade: "B+",
-      progress: 65,
-      status: "active",
-      announcement: 5,
-      schedule: "พ 13:00-15:50 น.",
-      announcements: [
-        {
-          id: "a1",
-          title: "โครงงานกลางเทอม",
-          date: "14 มีนาคม 2025",
-          content: "เริ่มส่งโครงงานวิเคราะห์ความซับซ้อนของอัลกอริทึมตั้งแต่วันนี้",
-        },
-        {
-          id: "a2",
-          title: "ประกาศเรื่องการสอบ",
-          date: "11 มีนาคม 2025",
-          content: "สอบปลายเทอมจะขึ้นแบบจริง ไม่เป็นแบบเรียงความ ให้เตรียมตัวให้ดี",
-        },
-        {
-          id: "a3",
-          title: "เปิดห้องติวเสริม",
-          date: "10 มีนาคม 2025",
-          content: "เปิดห้องติวเสริมทุกศุกร์เวลา 16:00-18:00 น. ห้อง 101 ชั้น 2",
-        },
-        {
-          id: "a4",
-          title: "อัพเดตหนังสือเรียน",
-          date: "8 มีนาคม 2025",
-          content: "อัพเดตคำตอบแบบฝึกหัดบทที่ 5 ในหน้าเวบไซต์วิชา",
-        },
-        {
-          id: "a5",
-          title: "ประชุมเตือนความสำคัญ",
-          date: "5 มีนาคม 2025",
-          content: "ขอให้มาเรียนตรงเวลา และส่งการบ้านตรงกำหนด",
-        },
-      ],
-    },
-    {
-      id: "3",
-      code: "01418223",
-      name: "ระบบฐานข้อมูล",
-      instructor: "ดร. กิจเสริมศักดิ์ เล่นชอบ",
-      grade: "A-",
-      progress: 100,
-      status: "completed",
-      announcement: 1,
-      schedule: "ศ 10:00-12:50 น.",
-      announcements: [
-        {
-          id: "a1",
-          title: "วิชาเรียนจบแล้ว",
-          date: "30 มกราคม 2025",
-          content: "ปิดวิชาเรียนแล้ว สามารถดูเกรดสุดท้ายได้ในแถบข้างล่าง",
-        },
-      ],
-    },
-  ];
+  const { data: coursesResponse, isLoading, isError } = useQuery({
+    queryKey: ['studentCoursesList'],
+    queryFn: async () => {
+      const res = await fetch("/api/courses/student");
+      if (!res.ok) throw new Error("Failed to fetch courses");
+      return res.json();
+    }
+  });
+
+  const courses: StudentCourse[] = coursesResponse?.data?.courses || [];
+  const stats = coursesResponse?.data?.stats || { total: 0, active: 0, completed: 0, gpa: "0.00" };
+
+  if (isLoading) {
+    return (
+      <Layout role="student">
+        <div className="flex flex-col items-center justify-center h-[50vh] text-slate-500">
+          <Loader2 className="h-10 w-10 animate-spin mb-4 text-primary" />
+          <p>กำลังโหลดรายการวิชาเรียน...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Layout role="student">
+        <div className="p-4 bg-red-50 text-red-600 rounded-lg border border-red-200">
+          <p className="font-bold mb-1">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+          <p className="text-sm">โปรดลองรีเฟรชหน้าใหม่อีกครั้ง</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout role="student">
@@ -151,25 +90,25 @@ export default function StudentCourses() {
             {
               icon: BookOpen,
               label: "วิชาเรียนทั้งหมด",
-              value: "3",
+              value: String(stats.total),
               color: "bg-blue-100 text-blue-600",
             },
             {
               icon: Clock,
               label: "กำลังเรียน",
-              value: "2",
+              value: String(stats.active),
               color: "bg-yellow-100 text-yellow-600",
             },
             {
               icon: BookOpen,
               label: "เรียนจบแล้ว",
-              value: "1",
+              value: String(stats.completed),
               color: "bg-green-100 text-green-600",
             },
             {
               icon: BarChart3,
               label: "เกรดเฉลี่ย",
-              value: "A-",
+              value: String(stats.gpa),
               color: "bg-purple-100 text-purple-600",
             },
           ].map((stat) => {

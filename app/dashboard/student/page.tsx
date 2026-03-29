@@ -4,40 +4,43 @@ export const dynamic = "force-dynamic";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Clock, CheckCircle, AlertCircle, Bell } from "lucide-react";
+import { BookOpen, Clock, CheckCircle, AlertCircle, Bell, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 
 export default function StudentDashboard() {
-  const enrolledCourses = [
-    {
-      code: "01418221",
-      name: "โครงสร้างข้อมูล",
-      instructor: "ผศ.ดร. สมศักดิ์ ใจดี",
-      status: "in-progress",
-      grade: "A",
-    },
-    {
-      code: "01418222",
-      name: "อัลกอริทึม",
-      instructor: "ผศ.ดร. ประณีต วรรณศิลป์",
-      status: "in-progress",
-      grade: "B+",
-    },
-    {
-      code: "01418223",
-      name: "ระบบฐานข้อมูล",
-      instructor: "ดร. กิจเสริมศักดิ์ เล่นชอบ",
-      status: "completed",
-      grade: "A-",
-    },
-  ];
+  const { data: dashboardData, isLoading, isError, error } = useQuery({
+    queryKey: ['studentDashboard'],
+    queryFn: async () => {
+      const res = await fetch("/api/dashboard/student");
+      if (!res.ok) throw new Error("Failed to fetch dashboard data");
+      return res.json();
+    }
+  });
 
-  const announcements = [
-    { id: 1, title: "ลดราคาค่าหอพักเทอมต่อไป", date: "15 มีนาคม 2025", type: "important" },
-    { id: 2, title: "การขยายเวลาการสอบกลางเทอม", date: "14 มีนาคม 2025", type: "update" },
-    { id: 3, title: "เปิดลงทะเบียนวิชาเลือกสำหรับเทอมถัดไป", date: "12 มีนาคม 2025", type: "update" },
-    { id: 4, title: "เลื่อนวันสอบปลายเทอมไปสัปดาห์ที่ 1 เมษายน", date: "10 มีนาคม 2025", type: "important" },
-  ];
+  if (isLoading) {
+    return (
+      <Layout role="student">
+        <div className="flex flex-col items-center justify-center h-[50vh] text-slate-500">
+          <Loader2 className="h-10 w-10 animate-spin mb-4 text-primary" />
+          <p>กำลังดึงข้อมูลแดชบอร์ด...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Layout role="student">
+        <div className="p-4 bg-red-50 text-red-600 rounded-lg border border-red-200">
+          <p className="font-bold mb-1">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+          <p className="text-sm">{error instanceof Error ? error.message : "โปรดลองใหม่อีกครั้ง"}</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  const { stats, enrolledCourses, announcements } = dashboardData?.data || { stats: [], enrolledCourses: [], announcements: [] };
 
   return (
     <Layout role="student">
@@ -48,13 +51,12 @@ export default function StudentDashboard() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { icon: BookOpen, label: "วิชาลงทะเบียน", value: "3", color: "bg-blue-100 text-blue-600" },
-            { icon: Clock, label: "กำลังเรียน", value: "2", color: "bg-yellow-100 text-yellow-600" },
-            { icon: CheckCircle, label: "เรียนจบแล้ว", value: "5", color: "bg-green-100 text-green-600" },
-            { icon: AlertCircle, label: "หน่วยกิตที่ได้", value: "45", color: "bg-purple-100 text-purple-600" },
-          ].map((stat) => {
-            const Icon = stat.icon;
+          {stats.map((stat: any) => {
+            let Icon = BookOpen;
+            if (stat.id === "in-progress") Icon = Clock;
+            if (stat.id === "completed") Icon = CheckCircle;
+            if (stat.id === "credits") Icon = AlertCircle;
+            
             return (
               <Card key={stat.label} className="p-4 border border-slate-200">
                 <div className="flex items-center gap-3">
@@ -82,26 +84,30 @@ export default function StudentDashboard() {
               </div>
 
               <div className="space-y-3">
-                {enrolledCourses.map((course) => (
-                  <div key={course.code} className="p-4 border border-slate-200 rounded-lg hover:border-primary transition-colors">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <code className="text-sm font-mono font-bold text-primary">{course.code}</code>
-                        <h3 className="font-medium text-slate-900 mt-1">{course.name}</h3>
-                        <p className="text-sm text-slate-600">{course.instructor}</p>
+                {enrolledCourses.length > 0 ? (
+                  enrolledCourses.map((course: any) => (
+                    <div key={course.code} className="p-4 border border-slate-200 rounded-lg hover:border-primary transition-colors">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <code className="text-sm font-mono font-bold text-primary">{course.code}</code>
+                          <h3 className="font-medium text-slate-900 mt-1">{course.name}</h3>
+                          <p className="text-sm text-slate-600">{course.instructor}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded font-medium ${course.status === "completed" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+                          {course.status === "completed" ? "เรียนจบแล้ว" : "กำลังเรียน"}
+                        </span>
                       </div>
-                      <span className={`text-xs px-2 py-1 rounded font-medium ${course.status === "completed" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
-                        {course.status === "completed" ? "เรียนจบแล้ว" : "กำลังเรียน"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="w-full bg-slate-200 rounded-full h-2 mr-3">
-                        <div className="bg-primary h-2 rounded-full" style={{ width: course.status === "completed" ? "100%" : "75%" }} />
+                      <div className="flex items-center justify-between">
+                        <div className="w-full bg-slate-200 rounded-full h-2 mr-3">
+                          <div className="bg-primary h-2 rounded-full" style={{ width: course.status === "completed" ? "100%" : "75%" }} />
+                        </div>
+                        <span className="text-sm font-bold text-slate-900">{course.grade}</span>
                       </div>
-                      <span className="text-sm font-bold text-slate-900">{course.grade}</span>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-slate-500 text-sm">ยังไม่มีรายวิชาที่ลงทะเบียนในขณะนี้</div>
+                )}
               </div>
             </Card>
           </div>
@@ -112,17 +118,21 @@ export default function StudentDashboard() {
               <h3 className="font-bold text-slate-900">ประกาศและข่าวสาร</h3>
             </div>
             <div className="space-y-3">
-              {announcements.map((announcement) => (
-                <div key={announcement.id} className="pb-3 border-b border-slate-200 last:border-b-0">
-                  <div className="flex gap-2 mb-1">
-                    <span className={`text-xs px-2 py-0.5 rounded font-medium whitespace-nowrap ${announcement.type === "important" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
-                      {announcement.type === "important" ? "สำคัญ" : "ข่าวสาร"}
-                    </span>
+              {announcements.length > 0 ? (
+                announcements.map((announcement: any) => (
+                  <div key={announcement.id} className="pb-3 border-b border-slate-200 last:border-b-0">
+                    <div className="flex gap-2 mb-1">
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium whitespace-nowrap ${announcement.type === "important" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
+                        {announcement.type === "important" ? "สำคัญ" : "ข่าวสาร"}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-900">{announcement.title}</p>
+                    <p className="text-xs text-slate-500 mt-1">{announcement.date}</p>
                   </div>
-                  <p className="text-sm font-medium text-slate-900">{announcement.title}</p>
-                  <p className="text-xs text-slate-500 mt-1">{announcement.date}</p>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="text-center py-4 text-slate-500 text-sm">ไม่มีประกาศใหม่</div>
+              )}
             </div>
           </Card>
         </div>

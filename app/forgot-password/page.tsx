@@ -5,16 +5,42 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSent(true);
+    setIsLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "การส่งคำขอขัดข้อง");
+      }
+
+      setSent(true);
+    } catch (err: any) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -46,8 +72,8 @@ export default function ForgotPassword() {
               />
             </div>
 
-            <Button type="submit" className="w-full">
-              ส่งลิงก์รีเซ็ตรหัสผ่าน
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "กำลังตรวจสอบข้อมูล..." : "ส่งลิงก์รีเซ็ตรหัสผ่าน"}
             </Button>
           </form>
         ) : (
@@ -62,8 +88,8 @@ export default function ForgotPassword() {
               ระบบได้ส่งลิงก์รีเซ็ตรหัสผ่านไปที่
             </p>
             <p className="text-sm font-bold text-primary mb-4">{email}</p>
-            <p className="text-xs text-slate-500">
-              กรุณาตรวจสอบอีเมล (รวมถึงโฟลเดอร์ Spam) แล้วคลิกลิงก์เพื่อตั้งรหัสผ่านใหม่
+            <p className="text-xs text-slate-500 mb-4">
+              กรุณาตรวจสอบอีเมล (รวมถึงโฟลเดอร์ Spam) แล้วคลิกลิงก์เพี่อตั้งรหัสผ่านใหม่
             </p>
           </div>
         )}
