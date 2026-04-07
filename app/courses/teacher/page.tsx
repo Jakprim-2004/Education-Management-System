@@ -4,7 +4,8 @@ export const dynamic = "force-dynamic";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, BookOpen, Clock, MessageSquare } from "lucide-react";
+import { Users, BookOpen, Clock, MessageSquare, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 interface TeacherCourse {
   id: string;
@@ -19,52 +20,37 @@ interface TeacherCourse {
 }
 
 export default function TeacherCourses() {
-  const courses: TeacherCourse[] = [
-    {
-      id: "1",
-      code: "01418221",
-      name: "โครงสร้างข้อมูล",
-      semester: "2567/1",
-      students: 45,
-      classes: 15,
-      announcements: 3,
-      schedule: "จ 14:00-16:50 น.",
-      status: "active",
-    },
-    {
-      id: "2",
-      code: "01418222",
-      name: "อัลกอริทึม",
-      semester: "2567/1",
-      students: 38,
-      classes: 14,
-      announcements: 5,
-      schedule: "พ 13:00-15:50 น.",
-      status: "active",
-    },
-    {
-      id: "3",
-      code: "01418223",
-      name: "ระบบฐานข้อมูล",
-      semester: "2567/1",
-      students: 32,
-      classes: 13,
-      announcements: 2,
-      schedule: "ศ 10:00-12:50 น.",
-      status: "active",
-    },
-    {
-      id: "4",
-      code: "01418110",
-      name: "การเขียนโปรแกรม",
-      semester: "2566/2",
-      students: 58,
-      classes: 16,
-      announcements: 0,
-      schedule: "ก 10:00-12:50 น.",
-      status: "completed",
-    },
-  ];
+  const { data: coursesResponse, isLoading, isError, error } = useQuery({
+    queryKey: ['teacherCourses'],
+    queryFn: async () => {
+      const res = await fetch('/api/courses/teacher');
+      if (!res.ok) throw new Error('Failed to fetch courses data');
+      return res.json();
+    }
+  });
+
+  if (isLoading) {
+    return (
+      <Layout role="teacher">
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Layout role="teacher">
+        <div className="flex flex-col items-center justify-center h-[60vh]">
+          <p className="text-red-500 font-medium mb-2">ไม่สามารถโหลดข้อมูลรายวิชาได้</p>
+          <p className="text-slate-500 text-sm">{error instanceof Error ? error.message : "ระบบขัดข้อง"}</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  const courses: TeacherCourse[] = coursesResponse?.data || [];
 
   const activeCourses = courses.filter((c) => c.status === "active");
   const completedCourses = courses.filter((c) => c.status === "completed");

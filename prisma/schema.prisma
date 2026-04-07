@@ -185,6 +185,7 @@ model Teacher {
   advisees       Student[] @relation("StudentAdvisor")
   courseSections CourseSection[]
   makeupClasses  MakeupClass[]
+  coordinatedCourses Course[] @relation("CourseCoordinator")
 
   @@map("teachers")
 }
@@ -211,9 +212,11 @@ model Course {
   credits      Int
   type         CourseType @map("course_type")
   departmentId Int?       @map("department_id")
+  coordinatorId Int?      @map("coordinator_id")
   description  String?    @db.Text
 
   department        Department?        @relation(fields: [departmentId], references: [id])
+  coordinator       Teacher?           @relation("CourseCoordinator", fields: [coordinatorId], references: [id])
   curriculumCourses CurriculumCourse[]
   courseSections    CourseSection[]
   coursePlans       CoursePlan[]

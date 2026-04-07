@@ -45,15 +45,15 @@ export async function GET(request: NextRequest) {
 
     // Build a set of enrolled course IDs to determine status
     const enrolledCourseIds = new Set(
-      student.enrollments.map(e => e.section.courseId)
+      (student as any).enrollments.map((e: any) => e.section.courseId)
     );
     const completedCourseIds = new Set(
-      student.enrollments
-        .filter(e => e.grade && e.grade !== "F")
-        .map(e => e.section.courseId)
+      (student as any).enrollments
+        .filter((e: any) => e.grade && e.grade !== "F")
+        .map((e: any) => e.section.courseId)
     );
 
-    const courses = student.coursePlans.map(plan => {
+    const courses = (student as any).coursePlans.map((plan: any) => {
       let status: "planned" | "completed" | "in-progress" = plan.status as any || "planned";
       if (completedCourseIds.has(plan.courseId)) {
         status = "completed";
@@ -76,11 +76,18 @@ export async function GET(request: NextRequest) {
     // Get available semesters
     const semesters = [...new Set(courses.map(c => c.semester))].sort();
 
+    // Fetch all available courses for autocomplete
+    const allCourses = await prisma.course.findMany({
+      select: { code: true, name: true, credits: true },
+      orderBy: { code: 'asc' }
+    });
+
     return NextResponse.json({
       success: true,
       data: {
         courses,
-        semesters
+        semesters,
+        allCourses
       }
     });
 

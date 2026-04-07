@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     const result = courses.map(course => {
       // Get the latest/current section for display
-      const latestSection = course.courseSections[0];
+      const latestSection = (course as any).courseSections?.[0];
       const teacher = latestSection?.teacher?.user;
       const schedule = latestSection?.schedules?.[0];
       const semester = latestSection?.semester;

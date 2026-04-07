@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       }
     };
 
-    const registrations = student.enrollments.map(enrollment => {
+    const registrations = (student as any).enrollments.map((enrollment: any) => {
       const course = enrollment.section.course;
       const enrolledDate = enrollment.enrolledAt
         ? new Date(enrollment.enrolledAt).toLocaleDateString("th-TH", {

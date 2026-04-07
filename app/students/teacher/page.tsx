@@ -1,12 +1,13 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Download, MessageSquare } from "lucide-react";
+import { Search, Download, MessageSquare, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 interface Student {
   id: string;
@@ -22,67 +23,47 @@ interface Student {
 
 export default function TeacherStudentList() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState("01418221");
+  const [selectedCourse, setSelectedCourse] = useState("");
 
-  const students: Student[] = [
-    {
-      id: "1",
-      studentId: "6310000001",
-      name: "สมชาย ใจดี",
-      email: "student1@ku.ac.th",
-      course: "01418221",
-      grade: "A",
-      attendance: 95,
-      assignment: 90,
-      exam: 92,
-    },
-    {
-      id: "2",
-      studentId: "6310000002",
-      name: "ธนาภร บัวสวาง",
-      email: "student2@ku.ac.th",
-      course: "01418221",
-      grade: "B+",
-      attendance: 88,
-      assignment: 85,
-      exam: 88,
-    },
-    {
-      id: "3",
-      studentId: "6310000003",
-      name: "นาจารี อ่อนสม",
-      email: "student3@ku.ac.th",
-      course: "01418221",
-      grade: "A-",
-      attendance: 92,
-      assignment: 88,
-      exam: 90,
-    },
-    {
-      id: "4",
-      studentId: "6310000004",
-      name: "กิตติวัฒน์ เพ็งกิจ",
-      email: "student4@ku.ac.th",
-      course: "01418221",
-      grade: "B",
-      attendance: 85,
-      assignment: 82,
-      exam: 85,
-    },
-    {
-      id: "5",
-      studentId: "6310000005",
-      name: "วาสนา สุขสมบูรณ์",
-      email: "student5@ku.ac.th",
-      course: "01418222",
-      grade: "A",
-      attendance: 98,
-      assignment: 95,
-      exam: 94,
-    },
-  ];
+  const { data: studentsResponse, isLoading, isError, error } = useQuery({
+    queryKey: ['teacherStudents'],
+    queryFn: async () => {
+      const res = await fetch('/api/students/teacher');
+      if (!res.ok) throw new Error('Failed to fetch students data');
+      return res.json();
+    }
+  });
 
-  const courses = [...new Set(students.map((s) => s.course))];
+  const students: Student[] = studentsResponse?.data?.students || [];
+  const courses: { code: string, name: string }[] = studentsResponse?.data?.courses || [];
+
+  useEffect(() => {
+    // Select the first course available by default
+    if (courses.length > 0 && !selectedCourse) {
+      setSelectedCourse(courses[0].code);
+    }
+  }, [courses, selectedCourse]);
+
+  if (isLoading) {
+    return (
+      <Layout role="teacher">
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Layout role="teacher">
+        <div className="flex flex-col items-center justify-center h-[60vh]">
+          <p className="text-red-500 font-medium mb-2">ไม่สามารถโหลดข้อมูลรายชื่อนิสิตได้</p>
+          <p className="text-slate-500 text-sm">{error instanceof Error ? error.message : "ระบบขัดข้อง"}</p>
+        </div>
+      </Layout>
+    );
+  }
 
   const filteredStudents = students.filter((student) => {
     const matchesSearch =
@@ -97,6 +78,7 @@ export default function TeacherStudentList() {
     if (grade.startsWith("A")) return "text-green-600";
     if (grade.startsWith("B")) return "text-blue-600";
     if (grade.startsWith("C")) return "text-yellow-600";
+    if (grade === "Waiting") return "text-slate-500";
     return "text-red-600";
   };
 
@@ -125,10 +107,7 @@ export default function TeacherStudentList() {
             เลือกวิชา
           </label>
           <div className="flex flex-wrap gap-2">
-            {[
-              { code: "01418221", name: "โครงสร้างข้อมูล" },
-              { code: "01418222", name: "อัลกอริทึม" },
-            ].map((course) => (
+            {courses.length > 0 ? courses.map((course) => (
               <button
                 key={course.code}
                 onClick={() => setSelectedCourse(course.code)}
@@ -140,7 +119,7 @@ export default function TeacherStudentList() {
               >
                 {course.code} - {course.name}
               </button>
-            ))}
+            )) : <div className="text-sm text-slate-500 py-1">ยังไม่มีวิชา</div>}
           </div>
         </Card>
 

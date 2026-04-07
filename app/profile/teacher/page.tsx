@@ -247,7 +247,7 @@ export default function TeacherProfile() {
         {/* Action Buttons */}
         {isEditing && (
           <div className="flex gap-2">
-            <Button onClick={handleSave} className="flex items-center gap-2">
+            <Button onClick={handleSave} className=" flex items-center gap-2">
               <Save size={16} />
               บันทึก
             </Button>

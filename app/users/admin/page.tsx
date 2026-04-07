@@ -6,7 +6,9 @@ import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Edit2, Trash2, Download } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, Download, Loader2, X } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface User {
   id: string;
@@ -19,65 +21,155 @@ interface User {
 }
 
 export default function AdminUsers() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("ทั้งหมด");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [newUser, setNewUser] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    role: "student"
+  });
 
-  const users: User[] = [
-    {
-      id: "1",
-      username: "student001",
-      email: "student@ku.ac.th",
-      fullName: "สมชาย ใจดี",
-      role: "student",
-      status: "active",
-      joinDate: "2567-01-15",
+  const { data: usersResponse, isLoading, isError, error } = useQuery({
+    queryKey: ['adminUsers'],
+    queryFn: async () => {
+      const res = await fetch('/api/users/admin');
+      if (!res.ok) throw new Error('Failed to fetch users data');
+      return res.json();
+    }
+  });
+
+  const addUserMutation = useMutation({
+    mutationFn: async (userData: any) => {
+      const res = await fetch('/api/users/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
+      });
+      if (!res.ok) throw new Error('Failed to create user');
+      return res.json();
     },
-    {
-      id: "2",
-      username: "teacher001",
-      email: "teacher@ku.ac.th",
-      fullName: "สมศักดิ์ ใจดี",
-      role: "teacher",
-      status: "active",
-      joinDate: "2558-08-20",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+      setShowAddModal(false);
+      setNewUser({ firstName: "", lastName: "", email: "", password: "", role: "student" });
+      toast({
+        title: "สำเร็จ",
+        description: "เพิ่มผู้ใช้สำเร็จ!",
+      });
     },
-    {
-      id: "3",
-      username: "admin001",
-      email: "admin@ku.ac.th",
-      fullName: "อำนวย ศิริวรรณ",
-      role: "admin",
-      status: "active",
-      joinDate: "2555-05-10",
+    onError: (error) => {
+      console.error(error);
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "เกิดข้อผิดพลาดในการเพิ่มผู้ใช้",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleAddUser = () => {
+    if (!newUser.firstName || !newUser.lastName || !newUser.email || !newUser.password) {
+      toast({
+        title: "ข้อมูลไม่ครบ",
+        description: "กรุณากรอกข้อมูลให้ครบถ้วน รวมถึงรหัสผ่าน",
+        variant: "destructive",
+      });
+      return;
+    }
+    addUserMutation.mutate({
+      ...newUser,
+      passwordHash: newUser.password // passing password to API as passwordHash for backend
+    });
+  };
+
+  const editUserMutation = useMutation({
+    mutationFn: async (userData: any) => {
+      const res = await fetch('/api/users/admin', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
+      });
+      if (!res.ok) throw new Error('Failed to update user');
+      return res.json();
     },
-    {
-      id: "4",
-      username: "student002",
-      email: "student2@ku.ac.th",
-      fullName: "ธนาภร บัวสวาง",
-      role: "student",
-      status: "active",
-      joinDate: "2567-01-15",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+      setEditingUser(null);
+      toast({ title: "สำเร็จ", description: "อัปเดตข้อมูลผู้ใช้สำเร็จ" });
     },
-    {
-      id: "5",
-      username: "teacher002",
-      email: "teacher2@ku.ac.th",
-      fullName: "ประณีต วรรณศิลป์",
-      role: "teacher",
-      status: "inactive",
-      joinDate: "2560-06-15",
+    onError: (error) => {
+      console.error(error);
+      toast({ title: "ข้อผิดพลาด", description: "เกิดข้อผิดพลาดในการอัปเดตผู้ใช้", variant: "destructive" });
+    }
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/users/admin?id=${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete user');
+      return res.json();
     },
-    {
-      id: "6",
-      username: "student003",
-      email: "student3@ku.ac.th",
-      fullName: "นาจารี อ่อนสม",
-      role: "student",
-      status: "active",
-      joinDate: "2567-01-15",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+      toast({ title: "สำเร็จ", description: "ลบผู้ใช้สำเร็จ" });
     },
-  ];
+    onError: (error) => {
+      console.error(error);
+      toast({ title: "ข้อผิดพลาด", description: "เกิดข้อผิดพลาดในการลบผู้ใช้", variant: "destructive" });
+    }
+  });
+
+  const handleEditUser = () => {
+    if (!editingUser.firstName || !editingUser.lastName || !editingUser.email) {
+      toast({ title: "ข้อมูลไม่ครบ", description: "กรุณากรอกข้อมูลให้ครบถ้วน", variant: "destructive" });
+      return;
+    }
+    editUserMutation.mutate(editingUser);
+  };
+
+  const handleDeleteUser = (id: string) => {
+    if (window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้รายนี้? การกระทำนี้ไม่สามารถย้อนกลับได้")) {
+      deleteUserMutation.mutate(id);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!filteredUsers || filteredUsers.length === 0) {
+      toast({ title: "ไม่มีข้อมูล", description: "ไม่มีข้อมูลผู้ใช้ให้ส่งออก", variant: "destructive" });
+      return;
+    }
+    
+    // Create CSV content ensuring UTF-8 with BOM
+    const headers = ["ชื่อผู้ใช้", "ชื่อเต็ม", "อีเมล", "บทบาท", "สถานะ", "วันเข้างาน"];
+    const rows = filteredUsers.map(u => [
+      u.username,
+      u.fullName,
+      u.email,
+      u.role,
+      u.status,
+      u.joinDate
+    ]);
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ผู้ใช้ในระบบ.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "สำเร็จ", description: "ส่งออกไฟล์ข้อมูลสำเร็จ" });
+  };
+
+  const users: User[] = usersResponse?.data || [];
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -114,6 +206,27 @@ export default function AdminUsers() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <Layout role="admin">
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Layout role="admin">
+        <div className="flex flex-col items-center justify-center h-[60vh]">
+          <p className="text-red-500 font-medium mb-2">ไม่สามารถโหลดข้อมูลผู้ใช้ได้</p>
+          <p className="text-slate-500 text-sm">{error instanceof Error ? error.message : "ระบบขัดข้อง"}</p>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout role="admin">
       <div className="space-y-6">
@@ -123,7 +236,7 @@ export default function AdminUsers() {
             <h1 className="text-3xl font-bold text-slate-900">จัดการผู้ใช้</h1>
             <p className="text-slate-600 mt-1">ดูและจัดการบัญชีผู้ใช้ทั้งหมด</p>
           </div>
-          <Button className="flex items-center gap-2">
+          <Button className="flex items-center gap-2" onClick={() => setShowAddModal(true)}>
             <Plus size={16} />
             เพิ่มผู้ใช้
           </Button>
@@ -206,7 +319,7 @@ export default function AdminUsers() {
             <h2 className="text-lg font-bold text-slate-900">
               ผู้ใช้ ({filteredUsers.length})
             </h2>
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={handleExportCSV}>
               <Download size={16} />
               ส่งออก
             </Button>
@@ -280,10 +393,27 @@ export default function AdminUsers() {
                       </td>
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <button className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
+                          <button 
+                            onClick={() => {
+                              // We split fullName to prefill firstName and lastName
+                              const parts = user.fullName.split(" ");
+                              setEditingUser({
+                                id: user.id,
+                                firstName: parts[0] || "",
+                                lastName: parts.slice(1).join(" ") || "",
+                                email: user.email,
+                                role: user.role,
+                                isActive: user.status === "active"
+                              });
+                            }}
+                            className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
+                          >
                             <Edit2 size={16} className="text-slate-600" />
                           </button>
-                          <button className="p-2 hover:bg-red-100 rounded-lg transition-colors">
+                          <button 
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                          >
                             <Trash2 size={16} className="text-red-600" />
                           </button>
                         </div>
@@ -295,6 +425,166 @@ export default function AdminUsers() {
             </div>
           )}
         </Card>
+
+        {/* Add User Modal */}
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+              <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-slate-900">เพิ่มผู้ใช้ใหม่</h2>
+                <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">ชื่อ</label>
+                    <Input 
+                      placeholder="สมชาย" 
+                      value={newUser.firstName}
+                      onChange={(e) => setNewUser({...newUser, firstName: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">นามสกุล</label>
+                    <Input 
+                      placeholder="ใจดี" 
+                      value={newUser.lastName}
+                      onChange={(e) => setNewUser({...newUser, lastName: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">อีเมล</label>
+                    <Input 
+                      type="email"
+                      placeholder="somchai@ku.th" 
+                      value={newUser.email}
+                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">รหัสผ่าน</label>
+                    <Input 
+                      type="password"
+                      placeholder="••••••••" 
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">ประเภทบัญชี (Role)</label>
+                  <select 
+                    value={newUser.role}
+                    onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                  >
+                    <option value="student">นิสิต (Student)</option>
+                    <option value="teacher">อาจารย์ (Teacher)</option>
+                    <option value="admin">ผู้ดูแล (Admin)</option>
+                  </select>
+                </div>
+              </div>
+              <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowAddModal(false)}>
+                  ยกเลิก
+                </Button>
+                <Button 
+                  onClick={handleAddUser}
+                  disabled={addUserMutation.isPending}
+                  className="flex items-center gap-2"
+                >
+                  {addUserMutation.isPending && <Loader2 size={16} className="animate-spin" />}
+                  ยืนยันการเพิ่มผู้ใช้
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit User Modal */}
+        {editingUser && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+              <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-slate-900">แก้ไขข้อมูลผู้ใช้</h2>
+                <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">ชื่อ</label>
+                    <Input 
+                      placeholder="สมชาย" 
+                      value={editingUser.firstName}
+                      onChange={(e) => setEditingUser({...editingUser, firstName: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">นามสกุล</label>
+                    <Input 
+                      placeholder="ใจดี" 
+                      value={editingUser.lastName}
+                      onChange={(e) => setEditingUser({...editingUser, lastName: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">อีเมล</label>
+                  <Input 
+                    type="email"
+                    placeholder="somchai@ku.th" 
+                    value={editingUser.email}
+                    onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">ประเภทบัญชี (Role)</label>
+                    <select 
+                      value={editingUser.role}
+                      onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                    >
+                      <option value="student">นิสิต (Student)</option>
+                      <option value="teacher">อาจารย์ (Teacher)</option>
+                      <option value="admin">ผู้ดูแล (Admin)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">สถานะ</label>
+                    <select 
+                      value={editingUser.isActive ? "true" : "false"}
+                      onChange={(e) => setEditingUser({...editingUser, isActive: e.target.value === "true"})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                    >
+                      <option value="true">ใช้งาน (Active)</option>
+                      <option value="false">ระงับ (Inactive)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setEditingUser(null)}>
+                  ยกเลิก
+                </Button>
+                <Button 
+                  onClick={handleEditUser}
+                  disabled={editUserMutation.isPending}
+                  className="flex items-center gap-2"
+                >
+                  {editUserMutation.isPending && <Loader2 size={16} className="animate-spin" />}
+                  บันทึกการเปลี่ยนแปลง
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

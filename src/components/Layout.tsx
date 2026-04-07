@@ -63,9 +63,10 @@ export default function Layout({ children, role }: LayoutProps) {
       return [
         { icon: LayoutDashboard, label: "แดชบอร์ด", path: `/dashboard/${role}` },
         { icon: Users, label: "ผู้ใช้", path: `/users/${role}` },
-        { icon: BookOpen, label: "นำเข้าข้อมูล", path: `/import/${role}` },
-        { icon: Megaphone, label: "ประกาศข่าวสาร", path: `/announcements/${role}` },
+        { icon: BookOpen, label: "จัดการรายวิชา", path: `/courses/${role}` },
         { icon: ClipboardList, label: "จัดการหลักสูตร", path: `/curriculum/${role}` },
+        { icon: CheckCircle, label: "นำเข้าข้อมูล", path: `/import/${role}` },
+        { icon: Megaphone, label: "ประกาศข่าวสาร", path: `/announcements/${role}` },
       ];
     }
 

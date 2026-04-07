@@ -6,7 +6,8 @@ import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, Megaphone, Calendar, Eye, Search } from "lucide-react";
+import { Plus, Edit2, Trash2, Megaphone, Calendar, Eye, Search, Loader2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Announcement {
   id: string;
@@ -19,6 +20,7 @@ interface Announcement {
 }
 
 export default function AdminAnnouncements() {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -29,57 +31,64 @@ export default function AdminAnnouncements() {
     status: "เผยแพร่" as Announcement["status"],
   });
 
-  const [announcements, setAnnouncements] = useState<Announcement[]>([
-    {
-      id: "1",
-      title: "กำหนดการลงทะเบียนเรียน ภาคต้น ปีการศึกษา 2567",
-      content:
-        "นิสิตสามารถลงทะเบียนเรียนผ่านระบบ reg.ku.ac.th ได้ตั้งแต่วันที่ 15-20 มกราคม 2567 โดยให้ตรวจสอบแผนการเรียนกับอาจารย์ที่ปรึกษาก่อนดำเนินการลงทะเบียน",
-      date: "2567-01-10",
-      target: "นิสิต",
-      status: "เผยแพร่",
-      views: 523,
+  const { data: announcementsResponse, isLoading, isError, error } = useQuery({
+    queryKey: ['adminAnnouncements'],
+    queryFn: async () => {
+      const res = await fetch('/api/announcements/admin');
+      if (!res.ok) throw new Error('Failed to fetch announcements');
+      return res.json();
+    }
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (newAnnouncement: any) => {
+      const res = await fetch('/api/announcements/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAnnouncement),
+      });
+      if (!res.ok) throw new Error('Failed to create announcement');
+      return res.json();
     },
-    {
-      id: "2",
-      title: "ประกาศวันหยุดประจำภาคการศึกษา",
-      content:
-        "แจ้งวันหยุดราชการและวันหยุดพิเศษในภาคเรียนที่ 1/2567 ได้แก่ วันมาฆบูชา วันจักรี วันสงกรานต์ โปรดวางแผนการเรียนการสอนให้เหมาะสม",
-      date: "2567-01-08",
-      target: "ทั้งหมด",
-      status: "เผยแพร่",
-      views: 892,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminAnnouncements'] });
+      setFormData({ title: "", content: "", target: "ทั้งหมด", status: "เผยแพร่" });
+      setShowForm(false);
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (updatedAnnouncement: any) => {
+      const res = await fetch('/api/announcements/admin', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedAnnouncement),
+      });
+      if (!res.ok) throw new Error('Failed to update announcement');
+      return res.json();
     },
-    {
-      id: "3",
-      title: "แจ้งปรับปรุงโครงสร้างหลักสูตรวิศวกรรมคอมพิวเตอร์",
-      content:
-        "มีการปรับเปลี่ยนรายวิชาเลือกในหมวดวิชาเอก ตั้งแต่ปีการศึกษา 2568 เป็นต้นไป นิสิตที่เข้าศึกษาก่อนปี 2568 ใช้หลักสูตรเดิม",
-      date: "2567-01-05",
-      target: "นิสิต",
-      status: "เผยแพร่",
-      views: 345,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminAnnouncements'] });
+      setFormData({ title: "", content: "", target: "ทั้งหมด", status: "เผยแพร่" });
+      setEditingId(null);
+      setShowForm(false);
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/announcements/admin?id=${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete announcement');
+      return res.json();
     },
-    {
-      id: "4",
-      title: "กำหนดส่งเกรดภาคเรียนที่ 2/2566",
-      content:
-        "อาจารย์ผู้สอนกรุณาส่งเกรดภายในวันที่ 30 มกราคม 2567 ผ่านระบบ reg.ku.ac.th",
-      date: "2567-01-03",
-      target: "อาจารย์",
-      status: "เผยแพร่",
-      views: 128,
-    },
-    {
-      id: "5",
-      title: "แนวทางการสอบกลางภาค 1/2567 (ร่าง)",
-      content: "กำลังจัดทำตารางสอบกลางภาค รอการอนุมัติจากคณะกรรมการ",
-      date: "2567-01-15",
-      target: "ทั้งหมด",
-      status: "แบบร่าง",
-      views: 0,
-    },
-  ]);
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminAnnouncements'] });
+    }
+  });
+
+  const announcements: Announcement[] = announcementsResponse?.data || [];
 
   const filteredAnnouncements = announcements.filter(
     (a) =>
@@ -91,28 +100,10 @@ export default function AdminAnnouncements() {
     if (!formData.title || !formData.content) return;
 
     if (editingId) {
-      setAnnouncements(
-        announcements.map((a) =>
-          a.id === editingId
-            ? { ...a, title: formData.title, content: formData.content, target: formData.target, status: formData.status }
-            : a
-        )
-      );
-      setEditingId(null);
+      updateMutation.mutate({ id: editingId, ...formData });
     } else {
-      const newAnnouncement: Announcement = {
-        id: Math.random().toString(),
-        title: formData.title,
-        content: formData.content,
-        date: new Date().toISOString().slice(0, 10).replace(/(\d{4})/, (_, y) => String(Number(y) + 543)),
-        target: formData.target,
-        status: formData.status,
-        views: 0,
-      };
-      setAnnouncements([newAnnouncement, ...announcements]);
+      createMutation.mutate(formData);
     }
-    setFormData({ title: "", content: "", target: "ทั้งหมด", status: "เผยแพร่" });
-    setShowForm(false);
   };
 
   const handleEdit = (a: Announcement) => {
@@ -122,8 +113,20 @@ export default function AdminAnnouncements() {
   };
 
   const handleDelete = (id: string) => {
-    setAnnouncements(announcements.filter((a) => a.id !== id));
+    if (confirm("คุณแน่ใจหรือไม่ว่าต้องการลบประกาศนี้?")) {
+      deleteMutation.mutate(id);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <Layout role="admin">
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout role="admin">
@@ -143,8 +146,9 @@ export default function AdminAnnouncements() {
               setFormData({ title: "", content: "", target: "ทั้งหมด", status: "เผยแพร่" });
             }}
             className="flex items-center gap-2"
+            disabled={createMutation.isPending || updateMutation.isPending}
           >
-            <Plus size={16} />
+            {(createMutation.isPending || updateMutation.isPending) ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
             สร้างประกาศ
           </Button>
         </div>
@@ -250,7 +254,8 @@ export default function AdminAnnouncements() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleSubmit} className="flex items-center gap-2">
+                <Button onClick={handleSubmit} className="flex items-center gap-2" disabled={createMutation.isPending || updateMutation.isPending}>
+                  {(createMutation.isPending || updateMutation.isPending) && <Loader2 size={16} className="animate-spin" />}
                   {editingId ? "บันทึกการแก้ไข" : "เผยแพร่ประกาศ"}
                 </Button>
                 <Button

@@ -4,15 +4,62 @@ export const dynamic = "force-dynamic";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, BookOpen, Upload } from "lucide-react";
+import { Users, BookOpen, Upload, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+
+interface DashboardData {
+  stats: {
+    id: string;
+    label: string;
+    value: string;
+    color: string;
+  }[];
+}
 
 export default function AdminDashboard() {
-  const stats = [
-    { icon: Users, label: "ผู้ใช้ทั้งหมด", value: "1,245", color: "bg-blue-100 text-blue-600" },
-    { icon: BookOpen, label: "วิชาทั้งหมด", value: "128", color: "bg-green-100 text-green-600" },
-    { icon: Users, label: "นิสิตที่ใช้งาน", value: "892", color: "bg-purple-100 text-purple-600" },
-  ];
+  const { data: dashboardResponse, isLoading, isError, error } = useQuery({
+    queryKey: ['adminDashboard'],
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/admin');
+      if (!res.ok) {
+        throw new Error('Failed to fetch dashboard data');
+      }
+      return res.json();
+    }
+  });
+
+  if (isLoading) {
+    return (
+      <Layout role="admin">
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Layout role="admin">
+        <div className="flex flex-col items-center justify-center h-[60vh]">
+          <p className="text-red-500 font-medium mb-2">ไม่สามารถโหลดข้อมูลแดชบอร์ดได้</p>
+          <p className="text-slate-500 text-sm">{error instanceof Error ? error.message : "เกิดข้อผิดพลาดบางอย่าง"}</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  const data: DashboardData = dashboardResponse?.data;
+
+  const getIcon = (id: string) => {
+    switch (id) {
+      case "total-users": return Users;
+      case "total-courses": return BookOpen;
+      case "active-students": return Users;
+      default: return Users;
+    }
+  };
 
   return (
     <Layout role="admin">
@@ -23,10 +70,10 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {stats.map((stat) => {
-            const Icon = stat.icon;
+          {data?.stats.map((stat) => {
+            const Icon = getIcon(stat.id);
             return (
-              <Card key={stat.label} className="p-4 border border-slate-200">
+              <Card key={stat.id} className="p-4 border border-slate-200">
                 <div className="flex items-center gap-3">
                   <div className={`p-3 rounded-lg ${stat.color}`}>
                     <Icon size={24} />
@@ -54,8 +101,12 @@ export default function AdminDashboard() {
               <Link href="/import/admin">
                 <Button className="w-full justify-start" variant="outline">นำเข้าข้อมูล</Button>
               </Link>
-              <Button className="w-full justify-start" variant="outline">ส่งออกข้อมูล</Button>
-              <Button className="w-full justify-start" variant="outline">สำรองระบบ</Button>
+              <Link href="/import/admin">
+                <Button className="w-full justify-start" variant="outline">ส่งออกข้อมูล</Button>
+              </Link>
+              <Link href="/import/admin">
+                <Button className="w-full justify-start" variant="outline">สำรองระบบ</Button>
+              </Link>
             </div>
           </Card>
 
@@ -71,8 +122,9 @@ export default function AdminDashboard() {
               <Link href="/users/admin">
                 <Button className="w-full justify-start" variant="outline">ดูผู้ใช้</Button>
               </Link>
-              <Button className="w-full justify-start" variant="outline">เพิ่มผู้ใช้</Button>
-              <Button className="w-full justify-start" variant="outline">จัดการบทบาท</Button>
+              <Link href="/users/admin">
+                <Button className="w-full justify-start" variant="outline">เพิ่มผู้ใช้</Button>
+              </Link>
             </div>
           </Card>
 
@@ -85,9 +137,15 @@ export default function AdminDashboard() {
               <BookOpen className="text-primary" size={24} />
             </div>
             <div className="space-y-2">
-              <Button className="w-full justify-start" variant="outline">ดูวิชา</Button>
-              <Button className="w-full justify-start" variant="outline">สร้างวิชา</Button>
-              <Button className="w-full justify-start" variant="outline">จัดการหลักสูตร</Button>
+              <Link href="/courses/admin">
+                <Button className="w-full justify-start" variant="outline">ดูวิชา</Button>
+              </Link>
+              <Link href="/courses/admin">
+                <Button className="w-full justify-start" variant="outline">สร้างวิชา</Button>
+              </Link>
+              <Link href="/curriculum/admin">
+                <Button className="w-full justify-start" variant="outline">จัดการหลักสูตร</Button>
+              </Link>
             </div>
           </Card>
         </div>

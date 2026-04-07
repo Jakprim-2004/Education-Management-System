@@ -1,12 +1,13 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Calendar, Clock, CheckCircle, Send, BookOpen } from "lucide-react";
+import { Users, Calendar, Clock, CheckCircle, Send, BookOpen, Loader2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface StudentCourse {
   code: string;
@@ -24,6 +25,7 @@ interface StudentInfo {
 
 interface MakeupRequest {
   id: string;
+  sectionId: number;
   courseCode: string;
   courseName: string;
   reason: string;
@@ -35,96 +37,91 @@ interface MakeupRequest {
 }
 
 export default function TeacherMakeupClass() {
-  const [selectedRequest, setSelectedRequest] = useState<string>("1");
+  const queryClient = useQueryClient();
+  const [selectedRequest, setSelectedRequest] = useState<string>("mock_pending_1");
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [makeupDate, setMakeupDate] = useState("");
   const [makeupTime, setMakeupTime] = useState("");
 
-  const [requests, setRequests] = useState<MakeupRequest[]>([
-    {
-      id: "1",
-      courseCode: "01418221",
-      courseName: "โครงสร้างข้อมูล",
-      reason: "วันหยุดราชการ (วันมาฆบูชา)",
-      originalDate: "26 ก.พ. 2567 (จ 14:00-16:50)",
-      status: "กำลังเลือกวัน",
-      studentsTotal: 5,
-    },
-    {
-      id: "2",
-      courseCode: "01418222",
-      courseName: "อัลกอริทึม",
-      reason: "อาจารย์ไปราชการ",
-      originalDate: "12 มี.ค. 2567 (พ 13:00-15:50)",
-      status: "ส่งนัดแล้ว",
-      selectedDate: "16 มี.ค. 2567",
-      selectedTime: "ศุกร์ 15:00 - 17:50",
-      studentsTotal: 5,
-    },
-  ]);
+  const { data: makeupResponse, isLoading, isError, error } = useQuery({
+    queryKey: ['teacherMakeupClass'],
+    queryFn: async () => {
+      const res = await fetch('/api/makeup-class/teacher');
+      if (!res.ok) throw new Error('Failed to fetch makeup class data');
+      return res.json();
+    }
+  });
 
-  // ตารางเรียนของนิสิตทุกคน (ดึงจากระบบลงทะเบียนโดยตรง)
-  const students: StudentInfo[] = [
-    {
-      id: "1", studentId: "6310000001", name: "สมชาย ใจดี",
-      courses: [
-        { code: "01418221", name: "โครงสร้างข้อมูล", day: "จันทร์", time: "14:00 - 16:50" },
-        { code: "01175112", name: "ภาษาอังกฤษ", day: "อังคาร", time: "10:00 - 12:50" },
-        { code: "01418222", name: "อัลกอริทึม", day: "พุธ", time: "13:00 - 15:50" },
-        { code: "01418224", name: "เว็บแอปพลิเคชัน", day: "พฤหัสบดี", time: "14:00 - 16:50" },
-        { code: "01418223", name: "ระบบฐานข้อมูล", day: "ศุกร์", time: "10:00 - 12:50" },
-      ],
+  const sendMakeupMutation = useMutation({
+    mutationFn: async (payload: { sectionId: number, makeupDate: string, startTime: string, endTime: string, reason: string }) => {
+      const res = await fetch('/api/makeup-class/teacher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('Failed to send makeup request');
+      return res.json();
     },
-    {
-      id: "2", studentId: "6310000002", name: "ธนาภร บัวสวาง",
-      courses: [
-        { code: "01418221", name: "โครงสร้างข้อมูล", day: "จันทร์", time: "14:00 - 16:50" },
-        { code: "01418113", name: "สถิติเบื้องต้น", day: "อังคาร", time: "13:00 - 15:50" },
-        { code: "01418222", name: "อัลกอริทึม", day: "พุธ", time: "13:00 - 15:50" },
-        { code: "01418223", name: "ระบบฐานข้อมูล", day: "ศุกร์", time: "10:00 - 12:50" },
-      ],
-    },
-    {
-      id: "3", studentId: "6310000003", name: "นาจารี อ่อนสม",
-      courses: [
-        { code: "01418221", name: "โครงสร้างข้อมูล", day: "จันทร์", time: "14:00 - 16:50" },
-        { code: "01420101", name: "ฟิสิกส์ทั่วไป", day: "อังคาร", time: "08:00 - 10:50" },
-        { code: "01418222", name: "อัลกอริทึม", day: "พุธ", time: "13:00 - 15:50" },
-        { code: "01418224", name: "เว็บแอปพลิเคชัน", day: "พฤหัสบดี", time: "14:00 - 16:50" },
-      ],
-    },
-    {
-      id: "4", studentId: "6310000004", name: "กิตติวัฒน์ เพ็งกิจ",
-      courses: [
-        { code: "01418221", name: "โครงสร้างข้อมูล", day: "จันทร์", time: "14:00 - 16:50" },
-        { code: "01175112", name: "ภาษาอังกฤษ", day: "อังคาร", time: "10:00 - 12:50" },
-        { code: "01418222", name: "อัลกอริทึม", day: "พุธ", time: "13:00 - 15:50" },
-        { code: "01418223", name: "ระบบฐานข้อมูล", day: "ศุกร์", time: "10:00 - 12:50" },
-        { code: "01418232", name: "ระบบปฏิบัติการ", day: "ศุกร์", time: "14:00 - 16:50" },
-      ],
-    },
-    {
-      id: "5", studentId: "6310000005", name: "วาสนา สุขสมบูรณ์",
-      courses: [
-        { code: "01418221", name: "โครงสร้างข้อมูล", day: "จันทร์", time: "14:00 - 16:50" },
-        { code: "01418222", name: "อัลกอริทึม", day: "พุธ", time: "13:00 - 15:50" },
-        { code: "01355101", name: "ภาษาไทย", day: "พฤหัสบดี", time: "10:00 - 12:50" },
-      ],
-    },
-  ];
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teacherMakeupClass'] });
+      setMakeupDate("");
+      setMakeupTime("");
+    }
+  });
+
+  const requests: MakeupRequest[] = makeupResponse?.data?.requests || [];
+  const students: StudentInfo[] = makeupResponse?.data?.students || [];
+
+  // Automatically select the first request if the selected one doesn't exist
+  useEffect(() => {
+    if (requests.length > 0 && !requests.find(r => r.id === selectedRequest)) {
+      setSelectedRequest(requests[0].id);
+    }
+  }, [requests, selectedRequest]);
+
+  if (isLoading) {
+    return (
+      <Layout role="teacher">
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Layout role="teacher">
+        <div className="flex flex-col items-center justify-center h-[60vh]">
+          <p className="text-red-500 font-medium mb-2">ไม่สามารถโหลดข้อมูลได้</p>
+          <p className="text-slate-500 text-sm">{error instanceof Error ? error.message : "ระบบขัดข้อง"}</p>
+        </div>
+      </Layout>
+    );
+  }
 
   const currentRequest = requests.find((r) => r.id === selectedRequest);
   const viewingStudent = selectedStudent ? students.find((s) => s.id === selectedStudent) : null;
 
   const handleSendMakeup = () => {
     if (!makeupDate || !makeupTime || !currentRequest) return;
-    setRequests(requests.map((r) =>
-      r.id === currentRequest.id
-        ? { ...r, status: "ส่งนัดแล้ว" as const, selectedDate: makeupDate, selectedTime: makeupTime }
-        : r
-    ));
-    setMakeupDate("");
-    setMakeupTime("");
+    
+    // Process time format from select box "วัน 08:00 - 10:50" -> startTime: 08:00, endTime: 10:50
+    const timeParts = makeupTime.split(" ");
+    let startTime = "08:00";
+    let endTime = "10:50";
+    if (timeParts.length >= 4) {
+      startTime = timeParts[1];
+      endTime = timeParts[3];
+    }
+
+    sendMakeupMutation.mutate({
+      sectionId: currentRequest.sectionId,
+      makeupDate,
+      startTime,
+      endTime,
+      reason: currentRequest.reason
+    });
   };
 
   return (

@@ -1,12 +1,14 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Edit2, Save, X, Plus, BookOpen, Trash2 } from "lucide-react";
+import { Edit2, Save, X, Plus, BookOpen, Trash2, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface CurriculumCourse {
   id: string;
@@ -24,98 +26,75 @@ interface SemesterPlan {
 }
 
 export default function AdminCurriculum() {
+  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [selectedYear, setSelectedYear] = useState(1);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [activeFormId, setActiveFormId] = useState<string | null>(null);
   const [newCourse, setNewCourse] = useState({ code: "", name: "", credits: 3, type: "วิชาบังคับ" as CurriculumCourse["type"], prerequisite: "" });
+  const [localPlans, setLocalPlans] = useState<SemesterPlan[]>([]);
 
-  const [plans, setPlans] = useState<SemesterPlan[]>([
-    {
-      year: 1,
-      semester: 1,
-      courses: [
-        { id: "1", code: "01418101", name: "การเขียนโปรแกรมคอมพิวเตอร์", credits: 3, type: "วิชาบังคับ" },
-        { id: "2", code: "01418102", name: "คณิตศาสตร์ดิสครีต", credits: 3, type: "วิชาบังคับ" },
-        { id: "3", code: "01175111", name: "ภาษาอังกฤษเบื้องต้น", credits: 3, type: "วิชาศึกษาทั่วไป" },
-        { id: "4", code: "01355101", name: "ภาษาไทยเพื่อการสื่อสาร", credits: 3, type: "วิชาศึกษาทั่วไป" },
-        { id: "5", code: "01418103", name: "แคลคูลัส 1", credits: 3, type: "วิชาบังคับ" },
-        { id: "6", code: "01420101", name: "ฟิสิกส์ทั่วไป", credits: 3, type: "วิชาบังคับ" },
-      ],
-    },
-    {
-      year: 1,
-      semester: 2,
-      courses: [
-        { id: "7", code: "01418111", name: "การเขียนโปรแกรมเชิงวัตถุ", credits: 3, type: "วิชาบังคับ", prerequisite: "01418101" },
-        { id: "8", code: "01418112", name: "แคลคูลัส 2", credits: 3, type: "วิชาบังคับ", prerequisite: "01418103" },
-        { id: "9", code: "01175112", name: "ภาษาอังกฤษระดับกลาง", credits: 3, type: "วิชาศึกษาทั่วไป" },
-        { id: "10", code: "01418113", name: "สถิติเบื้องต้น", credits: 3, type: "วิชาบังคับ" },
-        { id: "11", code: "01420102", name: "ปฏิบัติการฟิสิกส์", credits: 1, type: "วิชาบังคับ" },
-      ],
-    },
-    {
-      year: 2,
-      semester: 1,
-      courses: [
-        { id: "12", code: "01418221", name: "โครงสร้างข้อมูล", credits: 3, type: "วิชาบังคับ", prerequisite: "01418111" },
-        { id: "13", code: "01418222", name: "อัลกอริทึม", credits: 3, type: "วิชาบังคับ", prerequisite: "01418221" },
-        { id: "14", code: "01418223", name: "ระบบฐานข้อมูล", credits: 3, type: "วิชาบังคับ", prerequisite: "01418101" },
-        { id: "15", code: "01418224", name: "สถาปัตยกรรมคอมพิวเตอร์", credits: 3, type: "วิชาบังคับ" },
-        { id: "16", code: "01999033", name: "วิชาเลือกเสรี 1", credits: 3, type: "วิชาเสรี" },
-      ],
-    },
-    {
-      year: 2,
-      semester: 2,
-      courses: [
-        { id: "17", code: "01418231", name: "ระบบปฏิบัติการ", credits: 3, type: "วิชาบังคับ", prerequisite: "01418224" },
-        { id: "18", code: "01418232", name: "เว็บแอปพลิเคชัน", credits: 3, type: "วิชาบังคับ", prerequisite: "01418111" },
-        { id: "19", code: "01418233", name: "เครือข่ายคอมพิวเตอร์", credits: 3, type: "วิชาบังคับ" },
-        { id: "20", code: "01418234", name: "วิศวกรรมซอฟต์แวร์", credits: 3, type: "วิชาบังคับ" },
-      ],
-    },
-    {
-      year: 3,
-      semester: 1,
-      courses: [
-        { id: "21", code: "01418321", name: "ปัญญาประดิษฐ์", credits: 3, type: "วิชาบังคับ", prerequisite: "01418222" },
-        { id: "22", code: "01418322", name: "ความมั่นคงทางไซเบอร์", credits: 3, type: "วิชาเลือก", prerequisite: "01418233" },
-        { id: "23", code: "01418323", name: "การวิเคราะห์ข้อมูล", credits: 3, type: "วิชาเลือก", prerequisite: "01418223" },
-        { id: "24", code: "01418324", name: "วิชาเลือกเฉพาะทาง 1", credits: 3, type: "วิชาเลือก" },
-      ],
-    },
-    {
-      year: 3,
-      semester: 2,
-      courses: [
-        { id: "25", code: "01418331", name: "สัมมนา", credits: 1, type: "วิชาบังคับ" },
-        { id: "26", code: "01418332", name: "คอมพิวเตอร์กราฟิกส์", credits: 3, type: "วิชาเลือก" },
-        { id: "27", code: "01418333", name: "วิชาเลือกเฉพาะทาง 2", credits: 3, type: "วิชาเลือก" },
-        { id: "28", code: "01418334", name: "วิชาเลือกเฉพาะทาง 3", credits: 3, type: "วิชาเลือก" },
-      ],
-    },
-    {
-      year: 4,
-      semester: 1,
-      courses: [
-        { id: "29", code: "01418421", name: "โครงงานวิศวกรรม 1", credits: 3, type: "วิชาบังคับ" },
-        { id: "30", code: "01418422", name: "การฝึกงาน", credits: 3, type: "วิชาบังคับ" },
-        { id: "31", code: "01418423", name: "วิชาเลือกเฉพาะทาง 4", credits: 3, type: "วิชาเลือก" },
-      ],
-    },
-    {
-      year: 4,
-      semester: 2,
-      courses: [
-        { id: "32", code: "01418431", name: "โครงงานวิศวกรรม 2", credits: 3, type: "วิชาบังคับ", prerequisite: "01418421" },
-        { id: "33", code: "01418432", name: "วิชาเลือกเฉพาะทาง 5", credits: 3, type: "วิชาเลือก" },
-        { id: "34", code: "01999034", name: "วิชาเลือกเสรี 2", credits: 3, type: "วิชาเสรี" },
-      ],
-    },
-  ]);
+  const { data: curriculumResponse, isLoading, isError, error } = useQuery({
+    queryKey: ['adminCurriculum'],
+    queryFn: async () => {
+      const res = await fetch('/api/curriculum/admin');
+      if (!res.ok) throw new Error('Failed to fetch curriculum data');
+      return res.json();
+    }
+  });
+
+  const { data: coursesResponse } = useQuery({
+    queryKey: ['adminCoursesList'],
+    queryFn: async () => {
+      const res = await fetch('/api/courses/admin');
+      if (!res.ok) return { data: [] };
+      return res.json();
+    }
+  });
+  const allCourses: any[] = coursesResponse?.data || [];
+
+  const handleCodeChange = (code: string) => {
+    const existing = allCourses.find((c: any) => c.code.toLowerCase() === code.toLowerCase());
+    if (existing) {
+      let mappedType: CurriculumCourse["type"] = "วิชาบังคับ";
+      if (existing.type === "elective") mappedType = "วิชาเลือก";
+      if (existing.type === "general") mappedType = "วิชาศึกษาทั่วไป";
+      
+      setNewCourse({
+        ...newCourse,
+        code: existing.code,
+        name: existing.name,
+        credits: existing.credits,
+        type: mappedType
+      });
+    } else {
+      setNewCourse({ ...newCourse, code });
+    }
+  };
+
+  useEffect(() => {
+    if (curriculumResponse?.data?.plans) {
+      const apiPlans = curriculumResponse.data.plans as SemesterPlan[];
+      const fullPlans: SemesterPlan[] = [];
+      for (let y = 1; y <= 4; y++) {
+        for (let s = 1; s <= 2; s++) {
+          const existing = apiPlans.find(p => p.year === y && p.semester === s);
+          if (existing) {
+            fullPlans.push(existing);
+          } else {
+            fullPlans.push({ year: y, semester: s, courses: [] });
+          }
+        }
+      }
+      setLocalPlans(fullPlans);
+    }
+  }, [curriculumResponse]);
+
+  const plans = localPlans;
+  const departmentName = curriculumResponse?.data?.department || "วิศวกรรมคอมพิวเตอร์";
 
   const currentPlans = plans.filter((p) => p.year === selectedYear);
   const totalCredits = plans.reduce((sum, p) => sum + p.courses.reduce((s, c) => s + c.credits, 0), 0);
+  const existingCourseCodes = plans.flatMap(p => p.courses.map(c => c.code.toLowerCase()));
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -146,9 +125,9 @@ export default function AdminCurriculum() {
         },
       ],
     };
-    setPlans(updated);
+    setLocalPlans(updated);
     setNewCourse({ code: "", name: "", credits: 3, type: "วิชาบังคับ", prerequisite: "" });
-    setShowAddForm(false);
+    setActiveFormId(null);
   };
 
   const handleRemoveCourse = (yearNum: number, semNum: number, courseId: string) => {
@@ -159,7 +138,27 @@ export default function AdminCurriculum() {
       ...updated[planIdx],
       courses: updated[planIdx].courses.filter((c) => c.id !== courseId),
     };
-    setPlans(updated);
+    setLocalPlans(updated);
+  };
+
+  const handleSave = async () => {
+    try {
+      const res = await fetch('/api/curriculum/admin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ plans: localPlans }),
+      });
+      
+      if (!res.ok) throw new Error('Failed to save curriculum');
+      
+      setIsEditing(false);
+      toast({ title: "สำเร็จ", description: "บันทึกปรับปรุงหลักสูตรเรียบร้อยแล้ว" });
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: "ข้อผิดพลาด", description: "เกิดข้อผิดพลาดในการบันทึกหลักสูตร", variant: "destructive" });
+    }
   };
 
   return (
@@ -174,11 +173,17 @@ export default function AdminCurriculum() {
             </p>
           </div>
           <Button
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={() => {
+              if (isEditing) {
+                handleSave();
+              } else {
+                setIsEditing(true);
+              }
+            }}
             className="flex items-center gap-2"
             variant={isEditing ? "outline" : "default"}
           >
-            {isEditing ? <><X size={16} /> เสร็จสิ้น</> : <><Edit2 size={16} /> แก้ไขหลักสูตร</>}
+            {isEditing ? <><Save size={16} /> บันทึกการเปลี่ยนแปลง</> : <><Edit2 size={16} /> แก้ไขหลักสูตร</>}
           </Button>
         </div>
 
@@ -240,7 +245,7 @@ export default function AdminCurriculum() {
                   size="sm"
                   variant="outline"
                   className="flex items-center gap-2"
-                  onClick={() => setShowAddForm(true)}
+                  onClick={() => setActiveFormId(`${plan.year}-${plan.semester}`)}
                 >
                   <Plus size={16} /> เพิ่มวิชา
                 </Button>
@@ -248,46 +253,61 @@ export default function AdminCurriculum() {
             </div>
 
             {/* Add form */}
-            {isEditing && showAddForm && (
+            {isEditing && activeFormId === `${plan.year}-${plan.semester}` && (
               <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <Input
-                    placeholder="รหัสวิชา"
-                    value={newCourse.code}
-                    onChange={(e) => setNewCourse({ ...newCourse, code: e.target.value })}
-                    className="border border-slate-300"
-                  />
-                  <Input
-                    placeholder="ชื่อวิชา"
-                    value={newCourse.name}
-                    onChange={(e) => setNewCourse({ ...newCourse, name: e.target.value })}
-                    className="border border-slate-300"
-                  />
-                  <Input
-                    type="number"
-                    min="1"
-                    max="6"
-                    placeholder="หน่วยกิต"
-                    value={newCourse.credits}
-                    onChange={(e) => setNewCourse({ ...newCourse, credits: Number(e.target.value) })}
-                    className="border border-slate-300"
-                  />
-                  <select
-                    value={newCourse.type}
-                    onChange={(e) => setNewCourse({ ...newCourse, type: e.target.value as CurriculumCourse["type"] })}
-                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                  >
-                    <option value="วิชาบังคับ">วิชาบังคับ</option>
-                    <option value="วิชาเลือก">วิชาเลือก</option>
-                    <option value="วิชาศึกษาทั่วไป">วิชาศึกษาทั่วไป</option>
-                    <option value="วิชาเสรี">วิชาเสรี</option>
-                  </select>
+                <div className="grid grid-cols-1 mb-3">
+                  <div className="relative">
+                    <Input
+                      placeholder="พิมพ์เพื่อค้นหารหัสวิชา หรือ ชื่อวิชา..."
+                      value={newCourse.code}
+                      onChange={(e) => handleCodeChange(e.target.value)}
+                      className="border border-slate-300"
+                      autoComplete="off"
+                    />
+                    {(() => {
+                      const exactMatch = allCourses.find((c: any) => c.code.toLowerCase() === newCourse.code.toLowerCase());
+                      if (exactMatch) return null; // Hide if exactly matched
+                      
+                      if (!newCourse.code) return null; // Hide until user starts typing
+
+                      const filtered = allCourses
+                        .filter((c: any) => !existingCourseCodes.includes(c.code.toLowerCase()))
+                        .filter((c: any) => c.code.toLowerCase().includes(newCourse.code.toLowerCase()) || c.name.toLowerCase().includes(newCourse.code.toLowerCase()))
+                        .slice(0, 50);
+
+                      if (filtered.length === 0) {
+                         if (newCourse.code) {
+                            return (
+                               <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg px-4 py-3 text-sm text-slate-500">
+                                 ไม่พบวิชานี้ในระบบ กรุณาเพิ่มข้อมูลวิชาก่อน
+                               </div>
+                            );
+                         }
+                         return null;
+                      }
+
+                      return (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-auto">
+                          {filtered.map((c: any) => (
+                              <div 
+                                key={c.id} 
+                                className="px-4 py-2 flex text-sm items-center hover:bg-slate-100 cursor-pointer transition-colors"
+                                onClick={() => handleCodeChange(c.code)}
+                              >
+                                <span className="font-mono font-bold text-primary mr-2 min-w-[70px]">{c.code}</span>
+                                <span className="text-slate-700 truncate">{c.name}</span>
+                              </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => handleAddCourse(plan.year, plan.semester)}>
                     เพิ่ม
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setShowAddForm(false)}>
+                  <Button size="sm" variant="outline" onClick={() => setActiveFormId(null)}>
                     ยกเลิก
                   </Button>
                 </div>

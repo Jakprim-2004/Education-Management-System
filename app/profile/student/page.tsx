@@ -36,12 +36,13 @@ export default function StudentProfile() {
 
   const profile = profileResponse?.data || {};
 
+  const profileBody = profileResponse?.data;
   // Sync editData when profile is successfully fetched or editing is toggled
   useEffect(() => {
-    if (!isEditing && profile) {
-      setEditData(profile);
+    if (!isEditing && profileBody) {
+      setEditData(profileBody);
     }
-  }, [profile, isEditing]);
+  }, [profileBody, isEditing]);
 
   const updateMutation = useMutation({
     mutationFn: async (updatedData: any) => {

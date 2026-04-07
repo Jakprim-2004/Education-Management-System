@@ -1,11 +1,13 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, FileUp, CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { Upload, FileUp, CheckCircle, AlertCircle, Clock, Loader2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface ImportLog {
   id: string;
@@ -18,8 +20,55 @@ interface ImportLog {
 }
 
 export default function AdminImportData() {
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importType, setImportType] = useState("students");
+  const [isDragging, setIsDragging] = useState(false);
+
+  const { data: logsResponse, isLoading } = useQuery({
+    queryKey: ['adminImportLogs'],
+    queryFn: async () => {
+      const res = await fetch('/api/import/admin');
+      if (!res.ok) throw new Error('Failed to fetch import logs');
+      return res.json();
+    }
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async ({ file, type }: { file: File, type: string }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("importType", type);
+
+      const res = await fetch('/api/import/admin', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Failed to upload file');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminImportLogs'] });
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      toast({
+        title: "สำเร็จ",
+        description: "อัปโหลดและนำเข้าไฟล์สำเร็จแล้ว!",
+      });
+    },
+    onError: (error: any) => {
+      console.error(error);
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "เกิดข้อผิดพลาดในการอัปโหลดไฟล์: " + (error.message || "กรุณาลองใหม่อีกครั้ง"),
+        variant: "destructive",
+      });
+    }
+  });
+
+  const importLogs: ImportLog[] = logsResponse?.data || [];
 
   const templates: Record<string, { headers: string; example: string; filename: string }> = {
     students: {
@@ -33,13 +82,13 @@ export default function AdminImportData() {
       filename: "template_teachers.csv",
     },
     courses: {
-      headers: "รหัสวิชา,ชื่อวิชา(ไทย),ชื่อวิชา(อังกฤษ),หน่วยกิต,ประเภท,คณะ",
-      example: "01418221,โครงสร้างข้อมูล,Data Structures,3,บังคับ,วิศวกรรมศาสตร์",
+      headers: "รหัสวิชา,ชื่อวิชา(ไทย),ชื่อวิชา(อังกฤษ),หน่วยกิต,ประเภท,คณะ,วันที่เรียน,เวลาเริ่ม,เวลาสิ้นสุด,ห้องเรียน",
+      example: "01418221,โครงสร้างข้อมูล,Data Structures,3,บังคับ,วิศวกรรมศาสตร์,MON,09:00,12:00,TBA",
       filename: "template_courses.csv",
     },
     curriculum: {
-      headers: "รหัสวิชา,ชื่อวิชา,หน่วยกิต,ปีที่,ภาคเรียน,ประเภท",
-      example: "01418221,โครงสร้างข้อมูล,3,2,1,บังคับ",
+      headers: "รหัสวิชา,ชื่อวิชา,หน่วยกิต,ปีที่,ภาคเรียน,ประเภท,วันที่เรียน,เวลาเริ่ม,เวลาสิ้นสุด,ห้องเรียน",
+      example: "01418221,โครงสร้างข้อมูล,3,2,1,บังคับ,MON,09:00,12:00,TBA",
       filename: "template_curriculum.csv",
     },
     registration: {
@@ -72,53 +121,41 @@ export default function AdminImportData() {
     URL.revokeObjectURL(url);
   };
 
-  const importLogs: ImportLog[] = [
-    {
-      id: "1",
-      date: "2567-01-20 14:30",
-      type: "นิสิต",
-      file: "students_2567.csv",
-      status: "success",
-      records: 892,
-      message: "นำเข้าสำเร็จ",
-    },
-    {
-      id: "2",
-      date: "2567-01-20 13:15",
-      type: "อาจารย์",
-      file: "teachers_2567.csv",
-      status: "success",
-      records: 125,
-      message: "นำเข้าสำเร็จ",
-    },
-    {
-      id: "3",
-      date: "2567-01-20 10:45",
-      type: "วิชา",
-      file: "courses_2567.csv",
-      status: "success",
-      records: 128,
-      message: "นำเข้าสำเร็จ",
-    },
-    {
-      id: "4",
-      date: "2567-01-19 16:20",
-      type: "การลงทะเบียน",
-      file: "registration_2567.csv",
-      status: "pending",
-      records: 1245,
-      message: "กำลังประมวลผล...",
-    },
-    {
-      id: "5",
-      date: "2567-01-19 11:00",
-      type: "เกรด",
-      file: "grades_2567.csv",
-      status: "error",
-      records: 0,
-      message: "ข้อมูลไม่ถูกต้องในแถว 45",
-    },
-  ];
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+  
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      setSelectedFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleUpload = () => {
+    if (!selectedFile) {
+      toast({
+        title: "ไม่ได้เลือกไฟล์",
+        description: "กรุณาเลือกไฟล์ก่อนทำการอัปโหลด",
+        variant: "destructive",
+      });
+      return;
+    }
+    uploadMutation.mutate({ file: selectedFile, type: importType });
+  };
 
   const getStatusInfo = (status: string) => {
     switch (status) {
@@ -148,6 +185,16 @@ export default function AdminImportData() {
         };
     }
   };
+
+  if (isLoading) {
+    return (
+      <Layout role="admin">
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout role="admin">
@@ -190,10 +237,23 @@ export default function AdminImportData() {
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 เลือกไฟล์ CSV
               </label>
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
-                <Upload className="mx-auto mb-2 text-slate-400" size={32} />
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept=".csv" 
+                onChange={handleFileChange} 
+              />
+              <div 
+                className={`border-2 border-dashed ${isDragging ? 'border-primary bg-primary/5' : 'border-slate-300'} rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer`}
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <Upload className={`mx-auto mb-2 ${isDragging ? 'text-primary' : 'text-slate-400'}`} size={32} />
                 <p className="text-slate-700 font-medium mb-1">
-                  ลากไฟล์มาที่นี่ หรือคลิกเพื่อเลือก
+                  {selectedFile ? `ไฟล์ที่เลือก: ${selectedFile.name}` : "ลากไฟล์มาที่นี่ หรือคลิกเพื่อเลือก"}
                 </p>
                 <p className="text-xs text-slate-500">
                   รองรับไฟล์ CSV เท่านั้น สูงสุด 10 MB
@@ -229,9 +289,13 @@ export default function AdminImportData() {
             </div>
 
             <div className="flex gap-2">
-              <Button className="flex items-center gap-2">
-                <FileUp size={16} />
-                อัปโหลดและนำเข้า
+              <Button 
+                onClick={handleUpload} 
+                disabled={!selectedFile || uploadMutation.isPending}
+                className="flex items-center gap-2"
+              >
+                {uploadMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+                {uploadMutation.isPending ? "กำลังอัปโหลด..." : "อัปโหลดและนำเข้า"}
               </Button>
               <Button variant="outline" onClick={downloadTemplate}>ดาวน์โหลดเทมเพลต</Button>
             </div>
@@ -294,7 +358,10 @@ export default function AdminImportData() {
                         {log.message}
                       </p>
                       {log.status !== "error" && (
-                        <Button size="sm" variant="outline" className="mt-2">
+                        <Button size="sm" variant="outline" className="mt-2" onClick={() => toast({
+                          title: "รายละเอียดการนำเข้า",
+                          description: `รหัสอ้างอิง: ${log.id}\nไฟล์: ${log.file}\nประเภท: ${log.type}\nข้อมูลสำเร็จ: ${log.records} เรคคอร์ด\nเวลา: ${log.date}`
+                        })}>
                           ดูรายละเอียด
                         </Button>
                       )}

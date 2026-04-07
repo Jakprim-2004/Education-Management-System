@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     // Build a map of completed/in-progress courses
     const courseStatusMap = new Map<number, { status: string; grade?: string }>();
-    student.enrollments.forEach(enrollment => {
+    (student as any).enrollments.forEach((enrollment: any) => {
       const courseId = enrollment.section.courseId;
       const hasGrade = enrollment.grade && enrollment.grade !== "-";
       const isEnrolled = enrollment.status === "enrolled";
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Get curriculum requirements
-    const curriculum = student.department?.curriculums?.[0];
+    const curriculum = (student as any).department?.curriculums?.[0];
 
     if (!curriculum) {
       return NextResponse.json({
