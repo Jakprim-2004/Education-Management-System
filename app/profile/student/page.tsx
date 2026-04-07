@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Edit2, Save, X, Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast"; // Typically it's in hooks, but if not we might need to adjust. Wait, in previous chats it was '@/components/ui/use-toast' or '@/hooks/use-toast'. I will use the one matching the existing files. Let's use `import { useToast } from "@/components/ui/use-toast";`
+import { useToast } from "@/hooks/use-toast";
 
 export default function StudentProfile() {
   const [isEditing, setIsEditing] = useState(false);
@@ -285,7 +285,7 @@ export default function StudentProfile() {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                ที่อยู่ 230/1 หมู่ 1 ต.บ้านใหม่ อ.เมือง จ.ปทุมธานี 12000 
+                ที่อยู่
               </label>
               {isEditing ? (
                 <Input
@@ -330,7 +330,7 @@ export default function StudentProfile() {
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 อาจารย์ที่ปรึกษา 
               </label>
-              <p className="text-slate-900">{profile.academicAdvisor}ผศ.ดร.กิตติพงษ์ พลอยพานิชกุล</p>
+              <p className="text-slate-900">{profile.academicAdvisor || "-"}</p>
             </div>
           </div>
         </Card>
