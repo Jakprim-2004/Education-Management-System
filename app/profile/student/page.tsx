@@ -1,12 +1,12 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Edit2, Save, X, Loader2 } from "lucide-react";
+import { Edit2, Save, X, Loader2, Camera, Upload } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,6 +16,14 @@ export default function StudentProfile() {
   const queryClient = useQueryClient();
   const [editData, setEditData] = useState<any>({});
   const [passwordData, setPasswordData] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Camera & Image handling states
+  const [isPhotoOptionOpen, setIsPhotoOptionOpen] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const { data: profileResponse, isLoading, isError } = useQuery({
     queryKey: ['studentProfile'],
@@ -96,16 +104,122 @@ export default function StudentProfile() {
     }
   });
 
-  const handleSave = () => {
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      const res = await fetch("/api/profile/student/avatar", {
+        method: "POST",
+        body: formData
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to upload avatar");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['studentProfile'] });
+      toast({
+        title: "สำเร็จ",
+        description: "อัปโหลดรูปโปรไฟล์เสร็จสิ้น",
+        className: "bg-green-50 text-green-900 border-green-200"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "ไฟล์ขนาดใหญ่เกินไป",
+          description: "โปรดอัปโหลดรูปภาพขนาดไม่เกิน 5MB",
+          variant: "destructive"
+        });
+        return;
+      }
+      setSelectedFile(file);
+      setIsEditing(true);
+    }
+  };
+
+  const handleCameraStart = async () => {
+    setIsPhotoOptionOpen(false);
+    setIsCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (err) {
+      toast({ 
+        title: "เกิดข้อผิดพลาด", 
+        description: "ไม่สามารถเข้าถึงกล้องได้ โปรดตรวจสอบการอนุญาตใช้งาน", 
+        variant: "destructive" 
+      });
+      setIsCameraOpen(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+    }
+    setIsCameraOpen(false);
+  };
+
+  const takePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], "camera_capture.jpg", { type: "image/jpeg" });
+            setSelectedFile(file);
+            setIsEditing(true);
+            stopCamera();
+          }
+        }, "image/jpeg", 0.95);
+      }
+    }
+  };
+
+  const handleSave = async () => {
+    if (selectedFile) {
+      try {
+        await uploadMutation.mutateAsync(selectedFile);
+      } catch (err) {
+        return; // Stop saving if upload fails
+      }
+    }
+
     updateMutation.mutate({
       firstName: editData.firstName,
       lastName: editData.lastName,
       phone: editData.phone
     });
+    setSelectedFile(null);
   };
 
   const handleCancel = () => {
     setEditData(profile);
+    setSelectedFile(null);
     setIsEditing(false);
   };
 
@@ -178,8 +292,37 @@ export default function StudentProfile() {
         {/* Profile Card */}
         <Card className="p-6 border border-slate-200">
           <div className="flex flex-col sm:flex-row gap-6 mb-6">
-            <div className="w-24 h-24 bg-primary rounded-lg flex items-center justify-center text-white text-4xl font-bold uppercase">
-              {profile.firstName ? profile.firstName[0] : "ส"}
+            <div className="relative group">
+              <div className="w-24 h-24 bg-primary rounded-lg flex items-center justify-center text-white text-4xl font-bold uppercase overflow-hidden">
+                {selectedFile ? (
+                  <img src={URL.createObjectURL(selectedFile)} alt="Preview" className="w-full h-full object-cover" />
+                ) : profile.avatarUrl ? (
+                  <img src={profile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  profile.firstName ? profile.firstName[0] : "ส"
+                )}
+              </div>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                accept="image/*" 
+                className="hidden" 
+              />
+              <button 
+                onClick={() => setIsPhotoOptionOpen(true)}
+                disabled={uploadMutation.isPending}
+                className="absolute inset-0 bg-black/50 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg disabled:opacity-50"
+              >
+                {uploadMutation.isPending ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  <>
+                    <Camera className="w-6 h-6 mb-1" />
+                    <span className="text-xs">เปลี่ยนรูป</span>
+                  </>
+                )}
+              </button>
             </div>
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-slate-900 mb-2">
@@ -407,6 +550,72 @@ export default function StudentProfile() {
           </form>
         </Card>
       </div>
+
+      {/* Photo Selection Modal */}
+      {isPhotoOptionOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
+            <h3 className="text-lg font-bold mb-4">เลือกวิธีเปลี่ยนรูปโปรไฟล์</h3>
+            <div className="space-y-3">
+              <Button 
+                className="w-full flex items-center justify-center gap-2" 
+                onClick={() => {
+                  setIsPhotoOptionOpen(false);
+                  fileInputRef.current?.click();
+                }}
+              >
+                <Upload className="w-5 h-5" /> อัปโหลดจากไฟล์
+              </Button>
+              <Button 
+                className="w-full flex items-center justify-center gap-2 border-primary text-primary hover:bg-primary/5" 
+                variant="outline"
+                onClick={handleCameraStart}
+              >
+                <Camera className="w-5 h-5" /> ถ่ายรูปจากกล้อง
+              </Button>
+            </div>
+            <Button 
+              variant="ghost" 
+              className="w-full mt-4"
+              onClick={() => setIsPhotoOptionOpen(false)}
+            >
+              ยกเลิก
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Camera Modal */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
+          <div className="relative w-full max-w-2xl px-4 flex flex-col items-center">
+            <button 
+              onClick={stopCamera}
+              className="absolute top-4 right-4 text-white p-2 bg-black/50 rounded-full hover:bg-black/70 z-10"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <h3 className="text-white text-xl font-bold mb-4">ถ่ายรูปโปรไฟล์</h3>
+            <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center border border-white/20">
+              {/* Force mirrors for camera view */}
+              <video 
+                ref={videoRef} 
+                className="w-full h-full object-cover scale-x-[-1]" 
+                autoPlay 
+                playsInline 
+              />
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+            <p className="text-white/70 text-sm mt-4 text-center">หันหน้าให้ตรงกรอบและกดปุ่มถ่ายรูป</p>
+            <Button 
+              className="mt-6 rounded-full w-16 h-16 flex items-center justify-center border-4 border-white/80 shadow-lg bg-primary hover:bg-primary/90 transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+              onClick={takePhoto}
+            >
+              <Camera className="w-7 h-7 text-white" />
+            </Button>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

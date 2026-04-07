@@ -6,7 +6,9 @@ import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, Download, Plus, X } from "lucide-react";
+import { Download, Plus, X, Loader2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface Course {
   id: string;
@@ -14,54 +16,13 @@ interface Course {
   name: string;
   credits: number;
   semester: string;
-  instructor?: string;
   status?: "planned" | "completed" | "in-progress";
 }
 
 export default function StudentCoursePlanner() {
   const [selectedSemester, setSelectedSemester] = useState("2567/1");
-  const [courses, setCourses] = useState<Course[]>([
-    {
-      id: "1",
-      code: "01418221",
-      name: "โครงสร้างข้อมูล",
-      credits: 3,
-      semester: "2566/2",
-      status: "completed",
-    },
-    {
-      id: "2",
-      code: "01418222",
-      name: "อัลกอริทึม",
-      credits: 3,
-      semester: "2567/1",
-      status: "in-progress",
-    },
-    {
-      id: "3",
-      code: "01418223",
-      name: "ระบบฐานข้อมูล",
-      credits: 3,
-      semester: "2567/1",
-      status: "in-progress",
-    },
-    {
-      id: "4",
-      code: "01418224",
-      name: "เว็บแอปพลิเคชัน",
-      credits: 3,
-      semester: "2567/1",
-      status: "planned",
-    },
-    {
-      id: "5",
-      code: "01418225",
-      name: "ความมั่นคงทางไซเบอร์",
-      credits: 3,
-      semester: "2567/2",
-      status: "planned",
-    },
-  ]);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [newCourse, setNewCourse] = useState<Partial<Course>>({
     code: "",
@@ -70,29 +31,120 @@ export default function StudentCoursePlanner() {
     semester: "2567/1",
   });
 
+  const { data: plannerData, isLoading, isError } = useQuery({
+    queryKey: ['coursePlanner'],
+    queryFn: async () => {
+      const res = await fetch("/api/course-planner/student");
+      if (!res.ok) throw new Error("Failed to fetch course planner");
+      return res.json();
+    }
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async (courseData: any) => {
+      const res = await fetch("/api/course-planner/student", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(courseData)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to add course");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['coursePlanner'] });
+      setNewCourse({ code: "", name: "", credits: 3, semester: selectedSemester });
+      toast({
+        title: "สำเร็จ",
+        description: "เพิ่มวิชาในแผนการเรียนแล้ว",
+        className: "bg-green-50 text-green-900 border-green-200"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      const res = await fetch(`/api/course-planner/student?id=${planId}`, {
+        method: "DELETE"
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to delete");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['coursePlanner'] });
+      toast({
+        title: "สำเร็จ",
+        description: "ลบวิชาออกจากแผนแล้ว",
+        className: "bg-green-50 text-green-900 border-green-200"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const courses: Course[] = plannerData?.data?.courses || [];
+
   const handleAddCourse = () => {
-    if (newCourse.code && newCourse.name) {
-      setCourses([
-        ...courses,
-        {
-          id: Math.random().toString(),
-          code: newCourse.code || "",
-          name: newCourse.name || "",
-          credits: newCourse.credits || 3,
-          semester: newCourse.semester || "2567/1",
-          status: "planned",
-        },
-      ]);
-      setNewCourse({ code: "", name: "", credits: 3, semester: "2567/1" });
+    if (newCourse.code) {
+      addMutation.mutate({
+        courseCode: newCourse.code,
+        courseName: newCourse.name,
+        credits: newCourse.credits,
+        semester: selectedSemester
+      });
     }
   };
 
   const handleRemoveCourse = (id: string) => {
-    setCourses(courses.filter((c) => c.id !== id));
+    deleteMutation.mutate(id);
   };
 
   const filteredCourses = courses.filter((c) => c.semester === selectedSemester);
   const totalCredits = filteredCourses.reduce((sum, c) => sum + c.credits, 0);
+
+  // Get all semesters from data + defaults
+  const dataSemesters = plannerData?.data?.semesters || [];
+  const defaultSemesters = ["2566/2", "2567/1", "2567/2", "2568/1"];
+  const allSemesters = [...new Set([...defaultSemesters, ...dataSemesters])].sort();
+
+  if (isLoading) {
+    return (
+      <Layout role="student">
+        <div className="flex flex-col items-center justify-center h-[50vh] text-slate-500">
+          <Loader2 className="h-10 w-10 animate-spin mb-4 text-primary" />
+          <p>กำลังโหลดแผนการเรียน...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Layout role="student">
+        <div className="p-4 bg-red-50 text-red-600 rounded-lg border border-red-200">
+          <p className="font-bold mb-1">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+          <p className="text-sm">โปรดลองรีเฟรชหน้าใหม่อีกครั้ง</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout role="student">
@@ -112,7 +164,7 @@ export default function StudentCoursePlanner() {
         {/* Semester Selector */}
         <Card className="p-4 border border-slate-200">
           <div className="flex flex-wrap gap-3">
-            {["2566/2", "2567/1", "2567/2", "2568/1"].map((sem) => (
+            {allSemesters.map((sem) => (
               <button
                 key={sem}
                 onClick={() => setSelectedSemester(sem)}
@@ -139,7 +191,7 @@ export default function StudentCoursePlanner() {
               className="border border-slate-300"
             />
             <Input
-              placeholder="ชื่อวิชา"
+              placeholder="ชื่อวิชา (ไม่ต้องกรอกถ้ามีในระบบ)"
               value={newCourse.name || ""}
               onChange={(e) => setNewCourse({ ...newCourse, name: e.target.value })}
               className="border border-slate-300"
@@ -156,8 +208,12 @@ export default function StudentCoursePlanner() {
                 }
                 className="border border-slate-300 flex-1"
               />
-              <Button onClick={handleAddCourse} className="flex items-center gap-2">
-                <Plus size={16} />
+              <Button
+                onClick={handleAddCourse}
+                className="flex items-center gap-2"
+                disabled={addMutation.isPending}
+              >
+                {addMutation.isPending ? <Loader2 className="animate-spin w-4 h-4" /> : <Plus size={16} />}
                 เพิ่ม
               </Button>
             </div>
@@ -211,6 +267,7 @@ export default function StudentCoursePlanner() {
                       <button
                         onClick={() => handleRemoveCourse(course.id)}
                         className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
+                        disabled={deleteMutation.isPending}
                       >
                         <X size={18} className="text-slate-500" />
                       </button>
@@ -239,9 +296,8 @@ export default function StudentCoursePlanner() {
               </div>
               <div className="p-3 bg-slate-50 rounded-lg">
                 <p className="text-xs text-slate-600">หน่วยกิตสูงสุด</p>
-                <p className="text-sm text-slate-900">18 / 20</p>
+                <p className="text-sm text-slate-900">20 หน่วยกิต</p>
               </div>
-              <Button className="w-full mt-4">บันทึกแผน</Button>
             </div>
           </Card>
         </div>

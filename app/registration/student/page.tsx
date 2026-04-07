@@ -4,7 +4,8 @@ export const dynamic = "force-dynamic";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { CheckCircle, AlertCircle, Clock, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 interface RegistrationItem {
   id: string;
@@ -17,48 +18,42 @@ interface RegistrationItem {
 }
 
 export default function StudentRegistration() {
-  const registrations: RegistrationItem[] = [
-    {
-      id: "1",
-      code: "01418221",
-      name: "โครงสร้างข้อมูล",
-      credits: 3,
-      status: "approved",
-      registrationDate: "15 มกราคม 2567",
-      reason: "",
-    },
-    {
-      id: "2",
-      code: "01418222",
-      name: "อัลกอริทึม",
-      credits: 3,
-      status: "approved",
-      registrationDate: "15 มกราคม 2567",
-      reason: "",
-    },
-    {
-      id: "3",
-      code: "01418223",
-      name: "ระบบฐานข้อมูล",
-      credits: 3,
-      status: "approved",
-      registrationDate: "16 มกราคม 2567",
-      reason: "",
-    },
-    {
-      id: "4",
-      code: "01418224",
-      name: "เว็บแอปพลิเคชัน",
-      credits: 3,
-      status: "pending",
-      registrationDate: "17 มกราคม 2567",
-      reason: "รอการอนุมัติจากอาจารย์ที่ปรึกษา",
-    },
-  ];
+  const { data: regData, isLoading, isError } = useQuery({
+    queryKey: ['studentRegistration'],
+    queryFn: async () => {
+      const res = await fetch("/api/registration/student");
+      if (!res.ok) throw new Error("Failed to fetch registration data");
+      return res.json();
+    }
+  });
+
+  if (isLoading) {
+    return (
+      <Layout role="student">
+        <div className="flex flex-col items-center justify-center h-[50vh] text-slate-500">
+          <Loader2 className="h-10 w-10 animate-spin mb-4 text-primary" />
+          <p>กำลังโหลดข้อมูลการลงทะเบียน...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Layout role="student">
+        <div className="p-4 bg-red-50 text-red-600 rounded-lg border border-red-200">
+          <p className="font-bold mb-1">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+          <p className="text-sm">โปรดลองรีเฟรชหน้าใหม่อีกครั้ง</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  const registrations: RegistrationItem[] = regData?.data?.registrations || [];
+  const stats = regData?.data?.stats || { approved: 0, pending: 0, rejected: 0, totalApprovedCredits: 0 };
 
   const approved = registrations.filter((r) => r.status === "approved");
   const pending = registrations.filter((r) => r.status === "pending");
-  const totalCredits = approved.reduce((sum, r) => sum + r.credits, 0);
 
   const getStatusInfo = (status: string) => {
     switch (status) {
@@ -118,7 +113,7 @@ export default function StudentRegistration() {
               <div>
                 <p className="text-xs text-slate-600">อนุมัติแล้ว</p>
                 <p className="text-2xl font-bold text-slate-900">
-                  {approved.length} วิชา
+                  {stats.approved} วิชา
                 </p>
               </div>
             </div>
@@ -130,7 +125,7 @@ export default function StudentRegistration() {
               <div>
                 <p className="text-xs text-slate-600">อยู่ระหว่างตรวจสอบ</p>
                 <p className="text-2xl font-bold text-slate-900">
-                  {pending.length} วิชา
+                  {stats.pending} วิชา
                 </p>
               </div>
             </div>
@@ -140,7 +135,7 @@ export default function StudentRegistration() {
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-full">
                 <span className="text-2xl font-bold text-blue-600">
-                  {totalCredits}
+                  {stats.totalApprovedCredits}
                 </span>
               </div>
               <div>
@@ -247,7 +242,8 @@ export default function StudentRegistration() {
                     </div>
                   </div>
                 );
-              })}
+              })
+              }
             </div>
           </Card>
         )}

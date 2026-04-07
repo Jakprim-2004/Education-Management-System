@@ -79,7 +79,8 @@ export async function GET(request: NextRequest) {
         gpa: gpa,
         totalCredits: String(totalCredits),
         academicAdvisor: student.advisor ? `${student.advisor.user.firstName} ${student.advisor.user.lastName}` : "",
-        address: "" // Mock specific fixed field
+        address: "", // Mock specific fixed field
+        avatarUrl: student.user.avatarUrl || null
       }
     });
 
