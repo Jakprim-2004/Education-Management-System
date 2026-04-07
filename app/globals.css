@@ -105,3 +105,26 @@
     white-space: pre;
   }
 }
+
+@media print {
+  aside, header { 
+    display: none !important; 
+  }
+  .h-screen { 
+    height: auto !important; 
+  }
+  .overflow-hidden, .overflow-auto { 
+    overflow: visible !important; 
+  }
+  main { 
+    padding: 0 !important; 
+    margin: 0 !important; 
+  }
+  .max-w-7xl { 
+    max-width: 100% !important; 
+    margin: 0 !important; 
+  }
+  body, .bg-slate-50 { 
+    background-color: white !important; 
+  }
+}

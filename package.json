@@ -12,6 +12,7 @@
     "@prisma/extension-accelerate": "^3.0.1",
     "bcryptjs": "^3.0.3",
     "csv-parse": "^6.2.1",
+    "html2pdf.js": "^0.14.0",
     "jose": "^6.2.2",
     "next": "^16.2.1",
     "nodemailer": "^8.0.4",

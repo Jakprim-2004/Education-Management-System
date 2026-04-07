@@ -1,12 +1,12 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Download, Plus, X, Loader2 } from "lucide-react";
+import { Download, Plus, X, Loader2, CheckCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -118,9 +118,12 @@ export default function StudentCoursePlanner() {
 
   const allAvailableCourses = plannerData?.data?.allCourses || [];
   const plannedCourseCodes = new Set(courses.map(c => c.code));
+  const enrolledCourseCodes = new Set(plannerData?.data?.enrolledCourseCodes || []);
   
-  // Filter out already added courses
-  const filteredAvailableCourses = allAvailableCourses.filter((ac: any) => !plannedCourseCodes.has(ac.code));
+  // Filter out already planned AND already enrolled courses
+  const filteredAvailableCourses = allAvailableCourses.filter((ac: any) => 
+    !plannedCourseCodes.has(ac.code) && !enrolledCourseCodes.has(ac.code)
+  );
 
   // Autocomplete subset based on typing
   const searchResults = filteredAvailableCourses.filter((ac: any) => 
@@ -144,13 +147,33 @@ export default function StudentCoursePlanner() {
     setSelectedSemester(allSemesters[allSemesters.length - 1]);
   }
 
+  const addSemesterMutation = useMutation({
+    mutationFn: async (semesterId: string) => {
+      const res = await fetch("/api/course-planner/student/semester", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ semester: semesterId })
+      });
+      if (!res.ok) throw new Error("Failed to add custom semester");
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['coursePlanner'] });
+      setSelectedSemester(variables);
+      setNewSemesterInput("");
+      setIsAddingSemester(false);
+      toast({
+        title: "สำเร็จ",
+        description: "เพิ่มภาคเรียนใหม่เรียบร้อยแล้ว",
+        className: "bg-green-50 text-green-900 border-green-200"
+      });
+    }
+  });
+
   const handleAddNewSemester = () => {
     // Validate format like 2567/1
     if (/^\d{4}\/\d$/.test(newSemesterInput)) {
-      setCustomSemesters((prev) => [...prev, newSemesterInput]);
-      setSelectedSemester(newSemesterInput);
-      setNewSemesterInput("");
-      setIsAddingSemester(false);
+      addSemesterMutation.mutate(newSemesterInput);
     } else {
       toast({
         title: "รูปแบบไม่ถูกต้อง",
@@ -215,19 +238,24 @@ export default function StudentCoursePlanner() {
             ))}
 
             {isAddingSemester ? (
-              <div className="flex items-center gap-2 bg-slate-50 p-1 pl-2 rounded-lg border border-primary/50">
-                <span className="text-sm font-medium text-slate-600">ภาค</span>
-                <Input
-                  autoFocus
-                  placeholder="เช่น 2568/1"
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="เช่น 2567/1" 
+                  className="w-32"
                   value={newSemesterInput}
                   onChange={(e) => setNewSemesterInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAddNewSemester()}
-                  className="w-24 h-8 text-sm"
+                  autoFocus
                 />
-                <Button size="sm" onClick={handleAddNewSemester} className="h-8">เพิ่ม</Button>
-                <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setIsAddingSemester(false)}>
-                  <X size={16} />
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={handleAddNewSemester}
+                  disabled={addSemesterMutation.isPending}
+                >
+                  {addSemesterMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4 text-green-600" />}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setIsAddingSemester(false)}>
+                  <X className="w-4 h-4 text-slate-500" />
                 </Button>
               </div>
             ) : (

@@ -29,6 +29,8 @@ export default function AdminCourses() {
   const [selectedType, setSelectedType] = useState("ทั้งหมด");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [teacherSearch, setTeacherSearch] = useState("");
+  const [showTeacherDropdown, setShowTeacherDropdown] = useState(false);
   
   const [formData, setFormData] = useState({
     code: "",
@@ -137,6 +139,8 @@ export default function AdminCourses() {
   const closeForm = () => {
     setShowForm(false);
     setEditingId(null);
+    setTeacherSearch("");
+    setShowTeacherDropdown(false);
     setFormData({ 
       code: "", name: "", credits: 3, type: "วิชาบังคับ", description: "", coordinatorId: "",
       dayOfWeek: "MON", startTime: "09:00", endTime: "12:00", room: ""
@@ -157,6 +161,7 @@ export default function AdminCourses() {
       endTime: c.endTime || "12:00",
       room: c.room || ""
     });
+    setTeacherSearch(c.coordinatorName && c.coordinatorName !== "ไม่ระบุ" ? c.coordinatorName : "");
     setShowForm(true);
   };
 
@@ -305,18 +310,51 @@ export default function AdminCourses() {
                     <option value="วิชาเสรี">วิชาเสรี</option>
                   </select>
                 </div>
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium text-slate-700 mb-1">อาจารย์ผู้รับผิดชอบ</label>
-                  <select
-                    value={formData.coordinatorId}
-                    onChange={(e) => setFormData({ ...formData, coordinatorId: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm bg-white"
-                  >
-                    <option value="">-- ไม่ระบุ --</option>
-                    {teachers.map((t: any) => (
-                      <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
-                    ))}
-                  </select>
+                  <Input
+                    placeholder="พิมพ์ค้นหาชื่ออาจารย์..."
+                    value={teacherSearch}
+                    onChange={(e) => {
+                      setTeacherSearch(e.target.value);
+                      setShowTeacherDropdown(true);
+                      if (e.target.value === "") {
+                        setFormData({ ...formData, coordinatorId: "" });
+                      }
+                    }}
+                    onFocus={() => setShowTeacherDropdown(true)}
+                  />
+                  {showTeacherDropdown && teacherSearch && (
+                    <div className="absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {teachers
+                        .filter((t: any) =>
+                          t.name.toLowerCase().includes(teacherSearch.toLowerCase()) ||
+                          t.code.toLowerCase().includes(teacherSearch.toLowerCase())
+                        )
+                        .slice(0, 8)
+                        .map((t: any) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, coordinatorId: t.id });
+                              setTeacherSearch(`${t.name} (${t.code})`);
+                              setShowTeacherDropdown(false);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-primary/10 transition-colors flex items-center justify-between"
+                          >
+                            <span className="font-medium text-slate-900">{t.name}</span>
+                            <code className="text-xs text-slate-500">{t.code}</code>
+                          </button>
+                        ))}
+                      {teachers.filter((t: any) =>
+                        t.name.toLowerCase().includes(teacherSearch.toLowerCase()) ||
+                        t.code.toLowerCase().includes(teacherSearch.toLowerCase())
+                      ).length === 0 && (
+                        <div className="px-3 py-2 text-sm text-slate-400">ไม่พบอาจารย์</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mt-4">

@@ -20,6 +20,13 @@ export async function GET(request: NextRequest) {
     const student = await prisma.student.findUnique({
       where: { userId: payload.userId },
       include: {
+        user: true,
+        department: true,
+        advisor: {
+          include: {
+            user: true
+          }
+        },
         enrollments: {
           include: {
             section: {
@@ -88,7 +95,12 @@ export async function GET(request: NextRequest) {
         credits: course.credits,
         status,
         registrationDate: enrolledDate,
-        reason
+        reason,
+        semester: enrollment.section?.semester 
+          ? `${enrollment.section.semester.semesterNumber}/${enrollment.section.semester.academicYear}` 
+          : "ไม่ระบุภาคเรียน",
+        sectionNumber: enrollment.section?.sectionNumber || "-",
+        courseType: course.type || "C"
       };
     });
 
@@ -97,11 +109,19 @@ export async function GET(request: NextRequest) {
     const rejected = registrations.filter(r => r.status === "rejected");
     const totalApprovedCredits = approved.reduce((sum, r) => sum + r.credits, 0);
 
+    const studentInfo = {
+      studentCode: (student as any).studentCode,
+      firstName: (student as any).user?.firstName,
+      lastName: (student as any).user?.lastName,
+      departmentName: (student as any).department?.name || "",
+      advisorName: (student as any).advisor?.user ? `${(student as any).advisor.user.firstName} ${(student as any).advisor.user.lastName}` : ""
+    };
+
     // Format course plans
     const plannedCourses = (student as any).coursePlans.map((plan: any) => {
       return {
         id: plan.id,
-        semester: plan.semester,
+        semester: `${plan.plannedSemester}/${plan.plannedYear}`,
         courseId: plan.course.id,
         code: plan.course.code,
         name: plan.course.name,
@@ -124,6 +144,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
+        studentInfo,
         registrations,
         plannedCourses,
         stats: {
@@ -151,7 +172,7 @@ export async function POST(request: NextRequest) {
     if (!payload || payload.role !== "student") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
     const body = await request.json();
-    const { enrollments } = body; // Array of { courseId }
+    const { enrollments } = body; // Array of { courseId, semester }
 
     if (!Array.isArray(enrollments) || enrollments.length === 0) {
       return NextResponse.json({ message: "No courses selected" }, { status: 400 });
@@ -164,28 +185,61 @@ export async function POST(request: NextRequest) {
     const errors = [];
 
     for (const item of enrollments) {
-      const { courseId } = item;
+      const { courseId, semester } = item;
       if (!courseId) continue;
+
+      let targetSemesterRec = null;
+      if (semester) {
+        const [termStr, yearStr] = semester.split('/');
+        const semNum = parseInt(termStr);
+        const acadYear = parseInt(yearStr);
+        
+        targetSemesterRec = await prisma.semester.findFirst({
+          where: { semesterNumber: semNum, academicYear: acadYear }
+        });
+
+        // Auto-create semester record if it doesn't exist
+        if (!targetSemesterRec && semNum && acadYear) {
+          targetSemesterRec = await prisma.semester.create({
+            data: {
+              name: `ภาคเรียนที่ ${semNum}/${acadYear}`,
+              academicYear: acadYear,
+              semesterNumber: semNum,
+              startDate: new Date(acadYear - 543, semNum === 1 ? 5 : 10, 1), // approximate
+              endDate: new Date(acadYear - 543, semNum === 1 ? 9 : 2, 30),   // approximate
+              isCurrent: false
+            }
+          });
+        }
+      }
+
+      if (!targetSemesterRec) {
+        targetSemesterRec = await prisma.semester.findFirst({ orderBy: { isCurrent: 'desc' } });
+      }
+
+      if (!targetSemesterRec) {
+        errors.push(`ไม่พบภาคเรียนในระบบ`);
+        continue;
+      }
 
       // Fetch course details for friendly error
       const course = await prisma.course.findUnique({ where: { id: Number(courseId) } });
 
-      // Find the first available section for this course
+      // Find the first available section for this course IN THE SPECIFIED SEMESTER
       let section = await prisma.courseSection.findFirst({
-        where: { courseId: Number(courseId) },
+        where: { courseId: Number(courseId), semesterId: targetSemesterRec.id },
         orderBy: { sectionNumber: 'asc' }
       });
 
       if (!section) {
-        // Auto-create a temporary section so the student can register!
-        const semester = await prisma.semester.findFirst({ orderBy: { isCurrent: 'desc' } });
+        // Auto-create a temporary section so the student can register for this semester
         const teacher = await prisma.teacher.findFirst();
 
-        if (semester && teacher) {
+        if (teacher) {
           section = await prisma.courseSection.create({
             data: {
               courseId: Number(courseId),
-              semesterId: semester.id,
+              semesterId: targetSemesterRec.id,
               teacherId: teacher.id,
               sectionNumber: "Auto",
               maxStudents: 999,
@@ -210,12 +264,12 @@ export async function POST(request: NextRequest) {
       });
 
       if (existing) {
-        errors.push(`ลงทะเบียนซ้ำในหมู่เรียนที่ ${section.sectionNumber}`);
+        errors.push(`วิชา ${course?.code || courseId} ลงทะเบียนซ้ำแล้ว`);
         continue;
       }
 
       if ((section.currentStudents || 0) >= (section.maxStudents || 50)) {
-        errors.push(`หมู่เรียนที่ ${section.sectionNumber} ที่นั่งเต็มแล้ว`);
+        errors.push(`วิชา ${course?.code || courseId} ที่นั่งเต็มแล้ว`);
         continue;
       }
 

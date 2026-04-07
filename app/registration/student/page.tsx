@@ -4,14 +4,18 @@ export const dynamic = "force-dynamic";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, AlertCircle, Clock, Loader2, BookPlus, ChevronRight } from "lucide-react";
+import { CheckCircle, AlertCircle, Clock, Loader2, BookPlus, ChevronRight, Printer } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface RegistrationItem {
   id: string;
   code: string;
   name: string;
+  englishName?: string;
+  courseType?: string;
+  sectionNumber?: string;
+  semester?: string;
   credits: number;
   status: "approved" | "pending" | "rejected";
   registrationDate: string;
@@ -20,6 +24,7 @@ interface RegistrationItem {
 
 export default function StudentRegistration() {
   const queryClient = useQueryClient();
+  const [selectedSemester, setSelectedSemester] = useState<string>("");
 
   const { data: regData, isLoading, isError } = useQuery({
     queryKey: ['studentRegistration'],
@@ -53,6 +58,18 @@ export default function StudentRegistration() {
     }
   });
 
+  const allPlannedCourses = regData?.data?.plannedCourses || [];
+  const allRegistrations: RegistrationItem[] = regData?.data?.registrations || [];
+  const registrationSemesters = allRegistrations.map((r) => r.semester).filter(Boolean) as string[];
+  const plannedCourseSemesters = allPlannedCourses.map((c: any) => c.semester) as string[];
+  const allSemesters = [...new Set([...plannedCourseSemesters, ...registrationSemesters])].sort() as string[];
+
+  useEffect(() => {
+    if (!selectedSemester && allSemesters.length > 0) {
+      setSelectedSemester(allSemesters[0]);
+    }
+  }, [allSemesters, selectedSemester]);
+
   if (isLoading) {
     return (
       <Layout role="student">
@@ -75,12 +92,13 @@ export default function StudentRegistration() {
     );
   }
 
-  const registrations: RegistrationItem[] = regData?.data?.registrations || [];
-  const plannedCourses = regData?.data?.plannedCourses || [];
-  const stats = regData?.data?.stats || { approved: 0, pending: 0, rejected: 0, totalApprovedCredits: 0 };
+  const plannedCourses = allPlannedCourses.filter((c: any) => c.semester === selectedSemester);
 
-  const approved = registrations.filter((r) => r.status === "approved");
-  const pending = registrations.filter((r) => r.status === "pending");
+  // Filter registrations by selected semester
+  const filteredRegistrations = allRegistrations.filter((r) => r.semester === selectedSemester);
+  const approved = filteredRegistrations.filter((r) => r.status === "approved");
+  const pending = filteredRegistrations.filter((r) => r.status === "pending");
+  const totalApprovedCredits = approved.reduce((sum, r) => sum + r.credits, 0);
 
   const getStatusInfo = (status: string) => {
     switch (status) {
@@ -119,28 +137,53 @@ export default function StudentRegistration() {
     }
   };
 
+  const groupedBySemester = (regData?.data?.registrations || []).reduce((acc: any, reg: any) => {
+    const sem = reg.semester || "ไม่ระบุภาคเรียน";
+    if (!acc[sem]) acc[sem] = [];
+    acc[sem].push(reg);
+    return acc;
+  }, {});
+
+  const studentInfo = regData?.data?.studentInfo || {};
+
   return (
     <Layout role="student">
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">
-            ตรวจสอบการลงทะเบียน
-          </h1>
-          <p className="text-slate-600 mt-1">
-            ตรวจสอบสถานะการลงทะเบียนวิชา และรายละเอียดการอนุมัติ
-          </p>
+        <div className="flex justify-between items-start print:hidden">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">
+              ตรวจสอบการลงทะเบียน
+            </h1>
+            <p className="text-slate-600 mt-1">
+              ตรวจสอบสถานะการลงทะเบียนวิชา และรายละเอียดการอนุมัติ
+            </p>
+          </div>
+        </div>
+
+        {/* Semester Selector */}
+        <div className="flex items-center gap-3 print:hidden">
+          <span className="text-sm font-medium text-slate-700">เลือกภาคเรียน:</span>
+          <select 
+            value={selectedSemester || ""}
+            onChange={(e) => setSelectedSemester(e.target.value)}
+            className="text-sm p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-primary bg-white font-medium"
+          >
+            {allSemesters.map((sem) => (
+              <option key={sem} value={sem}>ภาค {sem}</option>
+            ))}
+          </select>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print:hidden">
           <Card className="p-4 border border-slate-200">
             <div className="flex items-center gap-3">
               <CheckCircle className="text-green-600" size={32} />
               <div>
                 <p className="text-xs text-slate-600">อนุมัติแล้ว</p>
                 <p className="text-2xl font-bold text-slate-900">
-                  {stats.approved} วิชา
+                  {approved.length} วิชา
                 </p>
               </div>
             </div>
@@ -152,7 +195,7 @@ export default function StudentRegistration() {
               <div>
                 <p className="text-xs text-slate-600">อยู่ระหว่างตรวจสอบ</p>
                 <p className="text-2xl font-bold text-slate-900">
-                  {stats.pending} วิชา
+                  {pending.length} วิชา
                 </p>
               </div>
             </div>
@@ -162,7 +205,7 @@ export default function StudentRegistration() {
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-full">
                 <span className="text-2xl font-bold text-blue-600">
-                  {stats.totalApprovedCredits}
+                  {totalApprovedCredits}
                 </span>
               </div>
               <div>
@@ -174,20 +217,21 @@ export default function StudentRegistration() {
         </div>
 
         {/* Plan Listing & Registration */}
-        {plannedCourses.length > 0 && (
-          <Card className="p-6 border border-blue-200 bg-blue-50/30">
-            <div className="flex items-center justify-between mb-4">
+        {allPlannedCourses.length > 0 && (
+          <Card className="p-6 border border-blue-200 bg-blue-50/30 print:hidden">
+            <div className="flex flex-col md:flex-row items-center justify-between mb-4 gap-4">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <BookPlus className="text-blue-600" size={20} />
                   แผนการเรียนที่รอลงทะเบียน ({plannedCourses.length} วิชา)
                 </h2>
-                <p className="text-sm text-slate-600 mt-1">เลือกหมู่เรียน (Section) สำหรับวิชาที่อยู่ในแผนการเรียนของคุณเพื่อลงทะเบียน</p>
+
               </div>
               <Button 
                 onClick={() => {
                   const enrollPayload = plannedCourses.map((c: any) => ({
-                    courseId: c.courseId.toString()
+                    courseId: c.courseId.toString(),
+                    semester: selectedSemester
                   }));
                   if (enrollPayload.length === 0) {
                     alert("ไม่มีวิชาในแผนให้ลงทะเบียน");
@@ -224,11 +268,11 @@ export default function StudentRegistration() {
         )}
 
         {/* Approved Registrations */}
-        <Card className="p-6 border border-slate-200">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">
+        <Card className="p-6 border border-slate-200 print:hidden">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 print:text-black print:border-b print:pb-2">
             วิชาที่อนุมัติแล้ว ({approved.length})
           </h2>
-          <div className="space-y-3">
+          <div className="space-y-3 print:space-y-1">
             {approved.length === 0 ? (
               <p className="text-slate-500 text-center py-8">
                 ไม่มีวิชาที่อนุมัติ
@@ -239,16 +283,16 @@ export default function StudentRegistration() {
                 return (
                   <div
                     key={reg.id}
-                    className={`p-4 rounded-lg border-2 ${statusInfo.bgColor} ${statusInfo.borderColor}`}
+                    className={`p-4 rounded-lg border-2 ${statusInfo.bgColor} ${statusInfo.borderColor} print:bg-white print:border-b print:border-x-0 print:border-t-0 print:border-gray-300 print:rounded-none print:p-2`}
                   >
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start justify-between mb-2 print:mb-0">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <code className="text-sm font-mono font-bold text-primary">
+                        <div className="flex items-center gap-2 mb-1 print:mb-0">
+                          <code className="text-sm font-mono font-bold text-primary print:text-black">
                             {reg.code}
                           </code>
                           <span
-                            className={`text-xs px-2 py-1 rounded font-medium ${statusInfo.color}`}
+                            className={`text-xs px-2 py-1 rounded font-medium ${statusInfo.color} print:hidden`}
                           >
                             {statusInfo.label}
                           </span>
@@ -275,26 +319,26 @@ export default function StudentRegistration() {
 
         {/* Pending Registrations */}
         {pending.length > 0 && (
-          <Card className="p-6 border border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">
+          <Card className="p-6 border border-slate-200 print:hidden">
+            <h2 className="text-lg font-bold text-slate-900 mb-4 print:text-black print:border-b print:pb-2">
               อยู่ระหว่างการตรวจสอบ ({pending.length})
             </h2>
-            <div className="space-y-3">
+            <div className="space-y-3 print:space-y-1">
               {pending.map((reg) => {
                 const statusInfo = getStatusInfo(reg.status);
                 return (
                   <div
                     key={reg.id}
-                    className={`p-4 rounded-lg border-2 ${statusInfo.bgColor} ${statusInfo.borderColor}`}
+                    className={`p-4 rounded-lg border-2 ${statusInfo.bgColor} ${statusInfo.borderColor} print:bg-white print:border-b print:border-x-0 print:border-t-0 print:border-gray-300 print:rounded-none print:p-2`}
                   >
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start justify-between mb-2 print:mb-0">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <code className="text-sm font-mono font-bold text-primary">
+                        <div className="flex items-center gap-2 mb-1 print:mb-0">
+                          <code className="text-sm font-mono font-bold text-primary print:text-black">
                             {reg.code}
                           </code>
                           <span
-                            className={`text-xs px-2 py-1 rounded font-medium ${statusInfo.color}`}
+                            className={`text-xs px-2 py-1 rounded font-medium ${statusInfo.color} print:hidden`}
                           >
                             {statusInfo.label}
                           </span>
@@ -325,11 +369,6 @@ export default function StudentRegistration() {
           </Card>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-2">
-          <Button>ดาวน์โหลดใบยืนยันการลงทะเบียน</Button>
-          <Button variant="outline">พิมพ์ใบยืนยัน</Button>
-        </div>
       </div>
     </Layout>
   );

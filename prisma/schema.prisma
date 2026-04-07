@@ -161,6 +161,7 @@ model Student {
   admissionYear Int           @map("admission_year")
   status        StudentStatus? @default(active)
   advisorId     Int?          @map("advisor_id")
+  customSemesters Json?       @default("[]") @map("custom_semesters")
 
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   department  Department  @relation(fields: [departmentId], references: [id])
@@ -288,12 +289,16 @@ model Schedule {
 }
 
 model Enrollment {
-  id         Int               @id @default(autoincrement()) @map("enrollment_id")
-  studentId  Int               @map("student_id")
-  sectionId  Int               @map("section_id")
-  status     EnrollmentStatus? @default(enrolled)
-  grade      String?           @db.VarChar(5)
-  enrolledAt DateTime?         @default(now()) @map("enrolled_at")
+  id              Int               @id @default(autoincrement()) @map("enrollment_id")
+  studentId       Int               @map("student_id")
+  sectionId       Int               @map("section_id")
+  status          EnrollmentStatus? @default(enrolled)
+  grade           String?           @db.VarChar(5)
+  attendanceScore Int?              @map("attendance_score")
+  assignmentScore Int?              @map("assignment_score")
+  midtermScore    Int?              @map("midterm_score")
+  finalScore      Int?              @map("final_score")
+  enrolledAt      DateTime?         @default(now()) @map("enrolled_at")
 
   student Student       @relation(fields: [studentId], references: [id])
   section CourseSection @relation(fields: [sectionId], references: [id])

@@ -73,8 +73,22 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Get available semesters
-    const semesters = [...new Set(courses.map(c => c.semester))].sort();
+    // Get available semesters from mapped courses
+    const mappedSemesters = courses.map(c => c.semester);
+    
+    // Get custom semesters from student profile
+    let custom = [];
+    try {
+      const studentAny = student as any;
+      if (studentAny.customSemesters) {
+        // Handle it if it's stored as JSON
+        custom = typeof studentAny.customSemesters === 'string' 
+          ? JSON.parse(studentAny.customSemesters) 
+          : studentAny.customSemesters;
+      }
+    } catch(e) {}
+
+    const semesters = [...new Set([...mappedSemesters, ...custom])].sort();
 
     // Fetch all available courses for autocomplete
     const allCourses = await prisma.course.findMany({
@@ -82,12 +96,16 @@ export async function GET(request: NextRequest) {
       orderBy: { code: 'asc' }
     });
 
+    // Collect enrolled course codes for the frontend to filter
+    const enrolledCourseCodes = (student as any).enrollments.map((e: any) => e.section.course.code);
+
     return NextResponse.json({
       success: true,
       data: {
         courses,
         semesters,
-        allCourses
+        allCourses,
+        enrolledCourseCodes
       }
     });
 
