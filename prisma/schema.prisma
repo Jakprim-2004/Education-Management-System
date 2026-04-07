@@ -49,6 +49,7 @@ enum EnrollmentStatus {
   enrolled
   dropped
   withdrawn
+  pending
 }
 
 enum CoursePlanStatus {

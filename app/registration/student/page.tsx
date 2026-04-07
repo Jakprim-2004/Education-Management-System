@@ -4,8 +4,9 @@ export const dynamic = "force-dynamic";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, AlertCircle, Clock, Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { CheckCircle, AlertCircle, Clock, Loader2, BookPlus, ChevronRight } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 interface RegistrationItem {
   id: string;
@@ -18,12 +19,37 @@ interface RegistrationItem {
 }
 
 export default function StudentRegistration() {
+  const queryClient = useQueryClient();
+
   const { data: regData, isLoading, isError } = useQuery({
     queryKey: ['studentRegistration'],
     queryFn: async () => {
       const res = await fetch("/api/registration/student");
       if (!res.ok) throw new Error("Failed to fetch registration data");
       return res.json();
+    }
+  });
+
+  const enrollMutation = useMutation({
+    mutationFn: async (enrollments: { courseId: string }[]) => {
+      const res = await fetch("/api/registration/student", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrollments }),
+      });
+      if (!res.ok) throw new Error("Failed to enroll");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.errors && data.errors.length > 0) {
+        alert(`ลงทะเบียนส่วนใหญ่สำเร็จ แต่มีบางรายการผิดพลาด: ${data.errors.join(", ")}`);
+      } else {
+        alert("ทำรายการเสร็จสมบูรณ์! สถานะ: รอพิจารณาอนุมัติ");
+      }
+      queryClient.invalidateQueries({ queryKey: ["studentRegistration"] });
+    },
+    onError: () => {
+      alert("เกิดข้อผิดพลาดในการทำรายการ โปรดลองอีกครั้ง");
     }
   });
 
@@ -50,6 +76,7 @@ export default function StudentRegistration() {
   }
 
   const registrations: RegistrationItem[] = regData?.data?.registrations || [];
+  const plannedCourses = regData?.data?.plannedCourses || [];
   const stats = regData?.data?.stats || { approved: 0, pending: 0, rejected: 0, totalApprovedCredits: 0 };
 
   const approved = registrations.filter((r) => r.status === "approved");
@@ -145,6 +172,56 @@ export default function StudentRegistration() {
             </div>
           </Card>
         </div>
+
+        {/* Plan Listing & Registration */}
+        {plannedCourses.length > 0 && (
+          <Card className="p-6 border border-blue-200 bg-blue-50/30">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <BookPlus className="text-blue-600" size={20} />
+                  แผนการเรียนที่รอลงทะเบียน ({plannedCourses.length} วิชา)
+                </h2>
+                <p className="text-sm text-slate-600 mt-1">เลือกหมู่เรียน (Section) สำหรับวิชาที่อยู่ในแผนการเรียนของคุณเพื่อลงทะเบียน</p>
+              </div>
+              <Button 
+                onClick={() => {
+                  const enrollPayload = plannedCourses.map((c: any) => ({
+                    courseId: c.courseId.toString()
+                  }));
+                  if (enrollPayload.length === 0) {
+                    alert("ไม่มีวิชาในแผนให้ลงทะเบียน");
+                    return;
+                  }
+                  if(confirm("ยืนยันการส่งรายการรายวิชาในแผนเพื่อลงทะเบียนเรียน (รออาจารย์ที่ปรึกษาอนุมัติ)?")) {
+                    enrollMutation.mutate(enrollPayload);
+                  }
+                }}
+                disabled={enrollMutation.isPending || plannedCourses.length === 0}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {enrollMutation.isPending ? "กำลังดำเนินการ..." : "ยืนยันการลงทะเบียนเรียน"}
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {plannedCourses.map((course: any) => (
+                <div key={course.id} className="p-4 rounded-lg border border-slate-200 bg-white">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <code className="text-sm font-mono font-bold text-primary">{course.code}</code>
+                        <span className="text-xs px-2 py-1 rounded font-medium bg-slate-100 text-slate-700">แผนเทอม {course.semester}</span>
+                      </div>
+                      <h3 className="font-medium text-slate-900">{course.name}</h3>
+                      <p className="text-xs text-slate-500 font-bold mt-1 text-primary">{course.credits} หน่วยกิต</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* Approved Registrations */}
         <Card className="p-6 border border-slate-200">
