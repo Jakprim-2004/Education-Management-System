@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
                 teacher: {
                   include: { user: true }
                 },
+                semester: true,
                 schedules: true,
                 makeupClasses: {
                   include: {
@@ -73,11 +74,13 @@ export async function GET(request: NextRequest) {
       const course = section.course;
       const teacher = section.teacher?.user;
       const instructorName = teacher ? `${teacher.firstName} ${teacher.lastName}` : "ไม่ระบุ";
+      const semesterStr = section.semester ? `${section.semester.semesterNumber}/${section.semester.academicYear}` : "";
 
       if (section.schedules.length === 0) {
         return [{
           code: course.code,
           name: course.name,
+          semester: semesterStr,
           day: "ไม่ระบุ",
           time: "ไม่ระบุ",
           room: "ไม่ระบุ",
@@ -88,6 +91,7 @@ export async function GET(request: NextRequest) {
       return section.schedules.map(sch => ({
         code: course.code,
         name: course.name,
+        semester: semesterStr,
         day: THAI_DAYS_FULL[sch.dayOfWeek] || sch.dayOfWeek,
         time: `${formatTime(new Date(sch.startTime))} - ${formatTime(new Date(sch.endTime))}`,
         room: sch.room || "ไม่ระบุ",

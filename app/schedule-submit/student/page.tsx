@@ -3,8 +3,9 @@ export const dynamic = "force-dynamic";
 
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
-import { Calendar, CheckCircle, Clock, BookOpen, Bell, Loader2 } from "lucide-react";
+import { Calendar, CheckCircle, Clock, BookOpen, Bell, Loader2, Filter } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
 
 export default function StudentScheduleSubmit() {
   const { data: scheduleData, isLoading, isError } = useQuery({
@@ -15,6 +16,25 @@ export default function StudentScheduleSubmit() {
       return res.json();
     }
   });
+
+  const [selectedSemester, setSelectedSemester] = useState<string>("all");
+
+  const registeredCourses = scheduleData?.data?.registeredCourses || [];
+  const notifications = scheduleData?.data?.notifications || [];
+  const stats = scheduleData?.data?.stats || { totalCourses: 0, pendingMakeups: 0, confirmedMakeups: 0 };
+
+  const uniqueSemesters = useMemo(() => {
+    const sems = new Set<string>();
+    registeredCourses.forEach((c: any) => {
+      if (c.semester) sems.add(c.semester);
+    });
+    return Array.from(sems).sort();
+  }, [registeredCourses]);
+
+  const filteredCourses = useMemo(() => {
+    if (selectedSemester === "all") return registeredCourses;
+    return registeredCourses.filter((c: any) => c.semester === selectedSemester);
+  }, [registeredCourses, selectedSemester]);
 
   if (isLoading) {
     return (
@@ -37,10 +57,6 @@ export default function StudentScheduleSubmit() {
       </Layout>
     );
   }
-
-  const registeredCourses = scheduleData?.data?.registeredCourses || [];
-  const notifications = scheduleData?.data?.notifications || [];
-  const stats = scheduleData?.data?.stats || { totalCourses: 0, pendingMakeups: 0, confirmedMakeups: 0 };
 
   return (
     <Layout role="student">
@@ -115,16 +131,31 @@ export default function StudentScheduleSubmit() {
         )}
 
         <Card className="p-6 border border-slate-200">
-          <h2 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
-            <Calendar size={20} className="text-primary" />
-            ตารางเรียนของฉัน
-          </h2>
-          <p className="text-sm text-slate-600 mb-4">รายวิชาที่ลงทะเบียนเรียนแล้ว ({registeredCourses.length} วิชา)</p>
-          {registeredCourses.length === 0 ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Calendar size={20} className="text-primary" />
+              ตารางเรียนของฉัน
+            </h2>
+            <div className="flex items-center gap-2">
+              <Filter size={16} className="text-slate-500" />
+              <select
+                value={selectedSemester}
+                onChange={(e) => setSelectedSemester(e.target.value)}
+                className="text-sm border-slate-300 rounded-md py-1.5 pl-3 pr-8 focus:ring-primary focus:border-primary border bg-white"
+              >
+                <option value="all">ทุกภาคเรียน</option>
+                {uniqueSemesters.map(sem => (
+                  <option key={sem} value={sem}>ภาคเรียน {sem}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <p className="text-sm text-slate-600 mb-4">รายวิชาที่แสดง ({filteredCourses.length} วิชา)</p>
+          {filteredCourses.length === 0 ? (
             <div className="text-center py-8 text-slate-500"><p>ยังไม่มีตารางเรียน</p></div>
           ) : (
             <div className="space-y-3">
-              {registeredCourses.map((course: any, idx: number) => (
+              {filteredCourses.map((course: any, idx: number) => (
                 <div key={idx} className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
                   <div className="min-w-[80px] text-center">
                     <p className="text-sm font-bold text-primary">{course.day}</p>
@@ -132,7 +163,7 @@ export default function StudentScheduleSubmit() {
                   </div>
                   <div className="h-10 w-px bg-slate-300" />
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
                       <code className="text-sm font-mono font-bold text-primary">{course.code}</code>
                       <span className="text-sm font-bold text-slate-900">{course.name}</span>
                     </div>
