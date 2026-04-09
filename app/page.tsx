@@ -54,7 +54,7 @@ export default function Login() {
       <Card className="w-full max-w-md p-8 shadow-lg border border-slate-200">
         <div className="mb-8">
           <div className="flex flex-col items-center justify-center gap-2 mb-2">
-            <Image src="/KU_Logo_PNG.png" alt="Kasetsart University" width={80} height={80} className="object-contain" />
+            <Image src="/KU_Logo_PNG.png" alt="Kasetsart University" width={80} height={80} priority style={{ width: "auto", height: "auto" }} className="object-contain" />
             <h1 className="text-2xl font-bold text-slate-900">ยินดีต้อนรับ</h1>
           </div>
           <p className="text-center text-sm text-slate-600 mt-2">

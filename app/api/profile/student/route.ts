@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     };
 
     student.enrollments.forEach(enrollment => {
-      if (enrollment.status === "completed" && enrollment.grade) {
+      if (enrollment.grade) {
         const credits = enrollment.section.course.credits;
         totalCredits += credits;
         

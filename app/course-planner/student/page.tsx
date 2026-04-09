@@ -1,38 +1,36 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Download, Plus, X, Loader2, CheckCircle } from "lucide-react";
+import { Download, Plus, X, Loader2, CheckCircle, Lock, BookOpen } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 interface Course {
-  id: string;
+  id: string; // 'req-1' or 'plan-2'
+  courseId: number;
   code: string;
   name: string;
   credits: number;
-  semester: string;
-  status?: "planned" | "completed" | "in-progress";
+  type: "required" | "elective" | "general";
+  yearLevel: number;
+  semester: number;
+  status: "planned" | "completed" | "in-progress";
+  isRequired: boolean;
 }
 
 export default function StudentCoursePlanner() {
-  const [selectedSemester, setSelectedSemester] = useState("");
-  const [customSemesters, setCustomSemesters] = useState<string[]>([]);
-  const [isAddingSemester, setIsAddingSemester] = useState(false);
-  const [newSemesterInput, setNewSemesterInput] = useState("");
+  const [selectedYear, setSelectedYear] = useState(1);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [newCourse, setNewCourse] = useState<Partial<Course>>({
-    code: "",
-    name: "",
-    credits: 3,
-    semester: "2567/1",
-  });
+  // State for Add Course UI per semester
+  const [addingToSemester, setAddingToSemester] = useState<number | null>(null); // 1 or 2
+  const [searchQuery, setSearchQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
 
   const { data: plannerData, isLoading, isError } = useQuery({
@@ -45,7 +43,7 @@ export default function StudentCoursePlanner() {
   });
 
   const addMutation = useMutation({
-    mutationFn: async (courseData: any) => {
+    mutationFn: async (courseData: { courseCode: string; yearLevel: number; semester: number }) => {
       const res = await fetch("/api/course-planner/student", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -59,7 +57,8 @@ export default function StudentCoursePlanner() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['coursePlanner'] });
-      setNewCourse({ code: "", name: "", credits: 3, semester: selectedSemester });
+      setAddingToSemester(null);
+      setSearchQuery("");
       toast({
         title: "สำเร็จ",
         description: "เพิ่มวิชาในแผนการเรียนแล้ว",
@@ -103,92 +102,12 @@ export default function StudentCoursePlanner() {
     }
   });
 
-  const courses: Course[] = plannerData?.data?.courses || [];
-
-  const handleAddCourse = () => {
-    if (newCourse.code) {
-      addMutation.mutate({
-        courseCode: newCourse.code,
-        courseName: newCourse.name,
-        credits: newCourse.credits,
-        semester: selectedSemester
-      });
-    }
-  };
-
-  const allAvailableCourses = plannerData?.data?.allCourses || [];
-  const plannedCourseCodes = new Set(courses.map(c => c.code));
-  const enrolledCourseCodes = new Set(plannerData?.data?.enrolledCourseCodes || []);
-  
-  // Filter out already planned AND already enrolled courses
-  const filteredAvailableCourses = allAvailableCourses.filter((ac: any) => 
-    !plannedCourseCodes.has(ac.code) && !enrolledCourseCodes.has(ac.code)
-  );
-
-  // Autocomplete subset based on typing
-  const searchResults = filteredAvailableCourses.filter((ac: any) => 
-    ac.code.toLowerCase().includes((newCourse.code || "").toLowerCase()) ||
-    ac.name.toLowerCase().includes((newCourse.code || "").toLowerCase())
-  ).slice(0, 5); // Limit to top 5 results for clean UI
-
-  const handleRemoveCourse = (id: string) => {
-    deleteMutation.mutate(id);
-  };
-
-  const filteredCourses = courses.filter((c) => c.semester === selectedSemester);
-  const totalCredits = filteredCourses.reduce((sum, c) => sum + c.credits, 0);
-
-  // Get all semesters from data + custom
-  const dataSemesters = plannerData?.data?.semesters || [];
-  const allSemesters = [...new Set([...dataSemesters, ...customSemesters])].sort();
-
-  // Auto-select the latest semester if none is selected
-  if (!selectedSemester && allSemesters.length > 0) {
-    setSelectedSemester(allSemesters[allSemesters.length - 1]);
-  }
-
-  const addSemesterMutation = useMutation({
-    mutationFn: async (semesterId: string) => {
-      const res = await fetch("/api/course-planner/student/semester", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ semester: semesterId })
-      });
-      if (!res.ok) throw new Error("Failed to add custom semester");
-      return res.json();
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['coursePlanner'] });
-      setSelectedSemester(variables);
-      setNewSemesterInput("");
-      setIsAddingSemester(false);
-      toast({
-        title: "สำเร็จ",
-        description: "เพิ่มภาคเรียนใหม่เรียบร้อยแล้ว",
-        className: "bg-green-50 text-green-900 border-green-200"
-      });
-    }
-  });
-
-  const handleAddNewSemester = () => {
-    // Validate format like 2567/1
-    if (/^\d{4}\/\d$/.test(newSemesterInput)) {
-      addSemesterMutation.mutate(newSemesterInput);
-    } else {
-      toast({
-        title: "รูปแบบไม่ถูกต้อง",
-        description: "กรุณาระบุภาคเรียนในรูปแบบ ปี/ภาค เช่น 2568/1",
-        variant: "destructive"
-      });
-    }
-  };
-
   if (isLoading) {
     return (
       <Layout role="student">
         <div className="flex flex-col items-center justify-center h-[50vh] text-slate-500">
           <Loader2 className="h-10 w-10 animate-spin mb-4 text-primary" />
-          <p>กำลังโหลดแผนการเรียน...</p>
+          <p>กำลังโหลดแผนการเรียนและวิชาบังคับ...</p>
         </div>
       </Layout>
     );
@@ -205,228 +124,221 @@ export default function StudentCoursePlanner() {
     );
   }
 
+  const courses: Course[] = plannerData?.data?.courses || [];
+  const maxYear = plannerData?.data?.maxYear || 4;
+  const curriculumName = plannerData?.data?.curriculumName || "แผนการเรียน";
+  const addableCourses = plannerData?.data?.addableCourses || [];
+
+  // Arrays for years
+  const years = Array.from({ length: Math.max(4, maxYear) }, (_, i) => i + 1);
+
+  const handleAddCourse = (courseCode: string, semester: number) => {
+    addMutation.mutate({
+      courseCode,
+      yearLevel: selectedYear,
+      semester
+    });
+  };
+
+  const handleRemoveCourse = (id: string, isRequired: boolean) => {
+    if (isRequired) return; // safeguard
+    deleteMutation.mutate(id);
+  };
+
+  const renderSemesterBox = (semesterNum: number) => {
+    const semCourses = courses.filter(c => c.yearLevel === selectedYear && c.semester === semesterNum);
+    const totalCredits = semCourses.reduce((sum, c) => sum + c.credits, 0);
+
+    // Search results for autocomplete
+    const searchResults = addableCourses
+      .filter((ac: any) => 
+        ac.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ac.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .slice(0, 5);
+
+    return (
+      <Card className="flex flex-col border border-slate-200 h-full">
+        {/* Header */}
+        <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center rounded-t-xl">
+          <h2 className="font-bold text-slate-900 flex items-center gap-2">
+            <BookOpen size={18} className="text-primary" />
+            ภาคเรียนที่ {semesterNum}
+          </h2>
+          <span className="text-sm font-semibold bg-white border border-slate-200 px-3 py-1 rounded-full text-slate-700">
+            {totalCredits} หน่วยกิต
+          </span>
+        </div>
+
+        {/* Course List */}
+        <div className="p-4 flex-1 flex flex-col gap-3">
+          {semCourses.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-slate-400 text-sm py-8 border-2 border-dashed border-slate-100 rounded-lg">
+              ไม่มีวิชาในภาคเรียนนี้
+            </div>
+          ) : (
+            semCourses.map((course) => (
+              <div
+                key={course.id}
+                className={`relative flex items-start justify-between p-3 rounded-lg border transition-colors ${
+                  course.status === "completed"
+                    ? "bg-green-50 border-green-200 hover:border-green-300"
+                    : course.status === "in-progress"
+                    ? "bg-blue-50 border-blue-200 hover:border-blue-300"
+                    : "bg-white border-slate-200 hover:border-slate-300 shadow-sm"
+                }`}
+              >
+                <div className="pr-8">
+                  <div className="flex items-center gap-2 mb-1">
+                    <code className="text-sm font-bold text-slate-800">
+                      {course.code}
+                    </code>
+                    {course.isRequired && (
+                      <span className="text-[10px] bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                        <Lock size={10} /> บังคับ
+                      </span>
+                    )}
+                    {course.status === "completed" && (
+                      <span className="text-[10px] bg-green-200 text-green-800 px-1.5 py-0.5 rounded font-medium">เรียนแล้ว</span>
+                    )}
+                    {course.status === "in-progress" && (
+                      <span className="text-[10px] bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded font-medium">กำลังเรียน</span>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium text-slate-700 leading-tight">
+                    {course.name}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {course.credits} หน่วยกิต • {course.type === "elective" ? "เลือกเสรี" : course.type === "general" ? "ศึกษาทั่วไป" : "วิชาแกน/บังคับ"}
+                  </p>
+                </div>
+
+                {!course.isRequired && (
+                  <button
+                    onClick={() => handleRemoveCourse(course.id, course.isRequired)}
+                    className="absolute top-3 right-3 p-1.5 bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-md transition-colors border border-transparent hover:border-red-100"
+                    disabled={deleteMutation.isPending}
+                    title="ลบวิชานี้"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+
+          {/* Add Course Section */}
+          {addingToSemester === semesterNum ? (
+            <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg relative">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-700">เพิ่มวิชาเลือก / หมวดทั่วไป</span>
+                <button 
+                  onClick={() => { setAddingToSemester(null); setSearchQuery(""); }}
+                  className="text-slate-400 hover:text-slate-700"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <Input
+                placeholder="พิมพ์ชื่อหรือรหัสวิชา..."
+                className="bg-white border-slate-300 text-sm mb-2"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowDropdown(true);
+                }}
+                onFocus={() => setShowDropdown(true)}
+                autoFocus
+              />
+              
+              {/* Autocomplete Dropdown */}
+              {showDropdown && searchQuery && (
+                <div className="absolute z-10 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+                  {searchResults.length === 0 ? (
+                    <div className="p-3 text-sm text-center text-slate-500">ไม่พบวิชาที่ค้นหา</div>
+                  ) : (
+                    searchResults.map((ac: any) => (
+                      <div
+                        key={ac.code}
+                        onClick={() => {
+                          setShowDropdown(false);
+                          handleAddCourse(ac.code, semesterNum);
+                        }}
+                        className="px-3 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0"
+                      >
+                        <div className="flex justify-between items-start mb-0.5">
+                          <code className="text-xs font-bold text-primary">{ac.code}</code>
+                          <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{ac.credits} นก.</span>
+                        </div>
+                        <p className="text-sm text-slate-700 line-clamp-1">{ac.name}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <Button 
+              variant="outline" 
+              className="mt-2 w-full border-dashed border-2 text-slate-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all text-sm h-10"
+              onClick={() => {
+                setAddingToSemester(semesterNum);
+                setSearchQuery("");
+              }}
+            >
+              <Plus size={16} className="mr-2" />
+              เพิ่มวิชาเลือก
+            </Button>
+          )}
+        </div>
+      </Card>
+    );
+  };
+
   return (
     <Layout role="student">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">วางแผนวิชา</h1>
-            <p className="text-slate-600 mt-1">วางแผนและจัดการตารางเรียนของคุณ</p>
+            <h1 className="text-2xl font-bold text-slate-900">แผนการเรียน (Course Planner)</h1>
+            <p className="text-slate-500 text-sm mt-1">{curriculumName}</p>
           </div>
-          <Button className="flex items-center gap-2">
+          <Button variant="outline" className="flex items-center gap-2">
             <Download size={16} />
-            ส่งออกแผน
+            ดาวน์โหลดแผน
           </Button>
         </div>
 
-        {/* Semester Selector */}
-        <Card className="p-4 border border-slate-200">
-          <div className="flex flex-wrap gap-3">
-            {allSemesters.map((sem) => (
-              <button
-                key={sem}
-                onClick={() => setSelectedSemester(sem)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors border ${
-                  selectedSemester === sem
-                    ? "bg-primary border-primary text-white"
-                    : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300"
-                }`}
-              >
-                ภาค {sem}
-              </button>
-            ))}
+        {/* Year Tabs */}
+        <div className="flex border-b border-slate-200 overflow-x-auto scroolbar-hide">
+          {years.map(year => (
+            <button
+              key={year}
+              onClick={() => setSelectedYear(year)}
+              className={`px-6 py-3 font-bold text-sm whitespace-nowrap border-b-2 transition-colors ${
+                selectedYear === year 
+                  ? "border-primary text-primary" 
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+              }`}
+            >
+              ชั้นปีที่ {year}
+            </button>
+          ))}
+        </div>
 
-            {isAddingSemester ? (
-              <div className="flex gap-2">
-                <Input 
-                  placeholder="เช่น 2567/1" 
-                  className="w-32"
-                  value={newSemesterInput}
-                  onChange={(e) => setNewSemesterInput(e.target.value)}
-                  autoFocus
-                />
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={handleAddNewSemester}
-                  disabled={addSemesterMutation.isPending}
-                >
-                  {addSemesterMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4 text-green-600" />}
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => setIsAddingSemester(false)}>
-                  <X className="w-4 h-4 text-slate-500" />
-                </Button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsAddingSemester(true)}
-                className="px-4 py-2 rounded-lg font-medium border border-dashed border-slate-300 text-slate-500 hover:bg-slate-50 hover:text-slate-700 hover:border-slate-400 transition-all flex items-center gap-2"
-              >
-                <Plus size={16} />
-                สร้างภาคเรียนเอง
-              </button>
-            )}
-          </div>
-        </Card>
+        {/* Semesters Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          {renderSemesterBox(1)}
+          {renderSemesterBox(2)}
+        </div>
 
-        {/* Add New Course */}
-        <Card className="p-6 border border-slate-200">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">เพิ่มวิชา</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative">
-            <div className="relative">
-              <Input
-                placeholder="ค้นหารหัส หรือ ชื่อวิชา เช่น 01418xxx"
-                value={newCourse.code || ""}
-                onChange={(e) => {
-                  setNewCourse({ ...newCourse, code: e.target.value });
-                  setShowDropdown(true);
-                }}
-                onFocus={() => setShowDropdown(true)}
-                onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                className="border border-slate-300 w-full"
-              />
-              {showDropdown && searchResults.length > 0 && newCourse.code && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg overflow-hidden">
-                  {searchResults.map((course: any) => (
-                    <div
-                      key={course.code}
-                      onClick={() => {
-                        setNewCourse({ 
-                          ...newCourse, 
-                          code: course.code, 
-                          name: course.name, 
-                          credits: course.credits 
-                        });
-                        setShowDropdown(false);
-                      }}
-                      className="px-4 py-2 hover:bg-slate-50 cursor-pointer flex justify-between items-center"
-                    >
-                      <div>
-                        <p className="font-bold text-sm text-slate-900">{course.code}</p>
-                        <p className="text-xs text-slate-500 line-clamp-1">{course.name}</p>
-                      </div>
-                      <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded">{course.credits} นก.</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <Input
-              placeholder="ชื่อวิชา (อัตโนมัติถ้าเลือกจากรายการ)"
-              value={newCourse.name || ""}
-              onChange={(e) => setNewCourse({ ...newCourse, name: e.target.value })}
-              className="border border-slate-300"
-            />
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                min="1"
-                max="6"
-                placeholder="หน่วยกิต"
-                value={newCourse.credits || 3}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, credits: parseInt(e.target.value) })
-                }
-                className="border border-slate-300 flex-1"
-              />
-              <Button
-                onClick={handleAddCourse}
-                className="flex items-center gap-2"
-                disabled={addMutation.isPending}
-              >
-                {addMutation.isPending ? <Loader2 className="animate-spin w-4 h-4" /> : <Plus size={16} />}
-                เพิ่ม
-              </Button>
-            </div>
-          </div>
-        </Card>
-
-        {/* Courses List */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-4">
-            <Card className="p-6 border border-slate-200">
-              <h2 className="text-lg font-bold text-slate-900 mb-4">
-                วิชา - ภาค {selectedSemester || "..."}
-              </h2>
-              {(!selectedSemester) ? (
-                <div className="text-center py-8 text-slate-500">
-                  <p>ยังไม่มีการเลือกภาคเรียน</p>
-                  <p className="text-sm">กรุณากด "+ สร้างภาคเรียนเอง" ด้านบน เพื่อเริ่มวางแผน</p>
-                </div>
-              ) : filteredCourses.length === 0 ? (
-                <p className="text-slate-500 text-center py-8">
-                  ไม่มีวิชาที่วางแผนสำหรับภาคนี้
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {filteredCourses.map((course) => (
-                    <div
-                      key={course.id}
-                      className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <code className="text-sm font-mono font-bold text-primary">
-                            {course.code}
-                          </code>
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            course.status === "completed"
-                              ? "bg-green-100 text-green-700"
-                              : course.status === "in-progress"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-slate-200 text-slate-700"
-                          }`}>
-                            {course.status === "completed"
-                              ? "เรียนจบแล้ว"
-                              : course.status === "in-progress"
-                              ? "กำลังเรียน"
-                              : "วางแผน"}
-                          </span>
-                        </div>
-                        <p className="text-sm font-medium text-slate-900">
-                          {course.name}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {course.credits} หน่วยกิต
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveCourse(course.id)}
-                        className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
-                        disabled={deleteMutation.isPending}
-                      >
-                        <X size={18} className="text-slate-500" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </div>
-
-          {/* Summary Card */}
-          <Card className="p-6 border border-slate-200 h-fit sticky top-6">
-            <h3 className="font-bold text-slate-900 mb-4">สรุป</h3>
-            <div className="space-y-3">
-              <div className="p-3 bg-slate-50 rounded-lg">
-                <p className="text-xs text-slate-600">จำนวนวิชา</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {filteredCourses.length}
-                </p>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-lg">
-                <p className="text-xs text-slate-600">รวมหน่วยกิต</p>
-                <p className="text-2xl font-bold text-primary">
-                  {totalCredits}
-                </p>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-lg">
-                <p className="text-xs text-slate-600">หน่วยกิตสูงสุด</p>
-                <p className="text-sm text-slate-900">20 หน่วยกิต</p>
-              </div>
-            </div>
-          </Card>
+        {/* Legend */}
+        <div className="flex gap-4 items-center justify-center pt-4 text-xs text-slate-500">
+          <div className="flex items-center gap-1.5"><Lock size={12} className="text-sky-600"/> วิชาแกน/บังคับ (ลบไม่ได้)</div>
+          <div className="w-2 h-2 rounded-full bg-green-400"></div> เรียนผ่านแล้ว
+          <div className="w-2 h-2 rounded-full bg-blue-400"></div> กำลังเรียน
+          <div className="w-2 h-2 rounded-full bg-slate-300"></div> ยังไม่ได้เรียน(วางแผน)
         </div>
       </div>
     </Layout>

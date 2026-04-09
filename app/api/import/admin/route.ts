@@ -220,16 +220,17 @@ export async function POST(request: NextRequest) {
                        });
                      }
                      
-                     // Helper mapping
+                     // Helper mapping — supports Thai & English day names
                      const mapDayToEnum = (d: string) => {
-                       const up = d.toUpperCase();
-                       if (up.includes("MON") || up === "จันทร์") return "MON";
-                       if (up.includes("TUE") || up === "อังคาร") return "TUE";
-                       if (up.includes("WED") || up === "พุธ") return "WED";
-                       if (up.includes("THU") || up === "พฤหัส") return "THU";
-                       if (up.includes("FRI") || up === "ศุกร์") return "FRI";
-                       if (up.includes("SAT") || up === "เสาร์") return "SAT";
-                       if (up.includes("SUN") || up === "อาทิตย์") return "SUN";
+                        const s = d.trim();
+                        const up = s.toUpperCase();
+                       if (up.includes("MON") || s.includes("จันทร์")) return "MON";
+                       if (up.includes("TUE") || s.includes("อังคาร")) return "TUE";
+                       if (up.includes("WED") || s.includes("พุธ")) return "WED";
+                       if (up.includes("THU") || s.includes("พฤหัส")) return "THU";
+                       if (up.includes("FRI") || s.includes("ศุกร์")) return "FRI";
+                       if (up.includes("SAT") || s.includes("เสาร์")) return "SAT";
+                       if (up.includes("SUN") || s.includes("อาทิตย์")) return "SUN";
                        return "MON";
                      };
 
@@ -315,16 +316,17 @@ export async function POST(request: NextRequest) {
                        });
                      }
                      
-                     // Helper mapping
+                     // Helper mapping — supports Thai & English day names
                      const mapDayToEnum = (d: string) => {
-                       const up = d.toUpperCase();
-                       if (up.includes("MON") || up === "จันทร์") return "MON";
-                       if (up.includes("TUE") || up === "อังคาร") return "TUE";
-                       if (up.includes("WED") || up === "พุธ") return "WED";
-                       if (up.includes("THU") || up === "พฤหัส") return "THU";
-                       if (up.includes("FRI") || up === "ศุกร์") return "FRI";
-                       if (up.includes("SAT") || up === "เสาร์") return "SAT";
-                       if (up.includes("SUN") || up === "อาทิตย์") return "SUN";
+                        const s = d.trim();
+                        const up = s.toUpperCase();
+                       if (up.includes("MON") || s.includes("จันทร์")) return "MON";
+                       if (up.includes("TUE") || s.includes("อังคาร")) return "TUE";
+                       if (up.includes("WED") || s.includes("พุธ")) return "WED";
+                       if (up.includes("THU") || s.includes("พฤหัส")) return "THU";
+                       if (up.includes("FRI") || s.includes("ศุกร์")) return "FRI";
+                       if (up.includes("SAT") || s.includes("เสาร์")) return "SAT";
+                       if (up.includes("SUN") || s.includes("อาทิตย์")) return "SUN";
                        return "MON";
                      };
 

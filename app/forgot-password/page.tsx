@@ -48,7 +48,7 @@ export default function ForgotPassword() {
       <Card className="w-full max-w-md p-8 shadow-lg border border-slate-200">
         <div className="mb-6">
           <div className="flex flex-col items-center justify-center gap-2 mb-2">
-            <Image src="/KU_Logo_PNG.png" alt="Kasetsart University" width={64} height={64} className="object-contain" />
+            <Image src="/KU_Logo_PNG.png" alt="Kasetsart University" width={64} height={64} priority style={{ width: "auto", height: "auto" }} className="object-contain" />
             <h1 className="text-2xl font-bold text-slate-900">ลืมรหัสผ่าน</h1>
           </div>
           <p className="text-center text-sm text-slate-600 mt-1">

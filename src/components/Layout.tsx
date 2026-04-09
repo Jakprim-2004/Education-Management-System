@@ -85,7 +85,7 @@ export default function Layout({ children, role }: LayoutProps) {
       >
         <div className="p-6">
           <div className="flex items-center gap-2 mb-8">
-            <Image src="/KU_Logo_PNG.png" alt="KU" width={40} height={40} className="object-contain" />
+            <Image src="/KU_Logo_PNG.png" alt="KU" width={40} height={40} priority style={{ width: "auto", height: "auto" }} className="object-contain" />
             <span className="text-lg font-bold text-slate-900">มก.กำแพงแสน</span>
           </div>
 

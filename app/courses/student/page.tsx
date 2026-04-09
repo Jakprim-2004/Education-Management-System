@@ -330,13 +330,13 @@ export default function StudentCourses() {
                       <p className="text-sm text-slate-600">สถานะ</p>
                       <p
                         className={`text-sm font-bold mt-1 ${
-                          selectedCourse.status === "completed"
+                          selectedCourse.status === "completed" || (selectedCourse.grade && selectedCourse.grade !== "-")
                             ? "text-green-600"
                             : "text-blue-600"
                         }`}
                       >
-                        {selectedCourse.status === "completed"
-                          ? "เรียนจบแล้ว"
+                        {selectedCourse.status === "completed" || (selectedCourse.grade && selectedCourse.grade !== "-")
+                          ? "เรียนเสร็จแล้ว"
                           : "กำลังเรียน"}
                       </p>
                     </div>

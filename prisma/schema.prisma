@@ -47,6 +47,7 @@ enum DayOfWeek {
 
 enum EnrollmentStatus {
   enrolled
+  completed
   dropped
   withdrawn
   pending

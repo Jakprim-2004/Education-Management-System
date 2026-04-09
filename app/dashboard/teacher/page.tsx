@@ -1,6 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+import { useState } from "react";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,15 @@ import { Users, BookOpen, BarChart3, Bell, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
+interface SemesterOption {
+  id: number;
+  name: string;
+  isCurrent: boolean;
+}
+
 interface DashboardData {
+  semesters: SemesterOption[];
+  selectedSemesterId: number | null;
   stats: {
     id: string;
     label: string;
@@ -19,6 +28,7 @@ interface DashboardData {
     code: string;
     name: string;
     students: number;
+    semester: string;
     status: string;
   }[];
   announcements: {
@@ -30,10 +40,15 @@ interface DashboardData {
 }
 
 export default function TeacherDashboard() {
+  const [selectedSemesterId, setSelectedSemesterId] = useState<number | null>(null);
+
   const { data: dashboardResponse, isLoading, isError, error } = useQuery({
-    queryKey: ['teacherDashboard'],
+    queryKey: ['teacherDashboard', selectedSemesterId],
     queryFn: async () => {
-      const res = await fetch('/api/dashboard/teacher');
+      const url = selectedSemesterId
+        ? `/api/dashboard/teacher?semesterId=${selectedSemesterId}`
+        : `/api/dashboard/teacher`;
+      const res = await fetch(url);
       if (!res.ok) {
         throw new Error('Failed to fetch dashboard data');
       }
@@ -64,7 +79,6 @@ export default function TeacherDashboard() {
 
   const data: DashboardData = dashboardResponse?.data;
 
-  // Function to map icon string to lucide component dynamically 
   const getIcon = (id: string) => {
     switch (id) {
       case "my-courses": return BookOpen;
@@ -74,14 +88,46 @@ export default function TeacherDashboard() {
     }
   };
 
+  const activeSemesterId = selectedSemesterId || data.selectedSemesterId;
+
   return (
     <Layout role="teacher">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">แดชบอร์ด</h1>
-          <p className="text-slate-600 mt-1">จัดการวิชาและนิสิตของคุณ</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">แดชบอร์ด</h1>
+            <p className="text-slate-600 mt-1">จัดการวิชาและนิสิตของคุณ</p>
+          </div>
         </div>
 
+        {/* Semester Selector */}
+        {data.semesters.length > 0 && (
+          <Card className="p-4 border border-slate-200">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-slate-700 mr-1">ภาคเรียน:</span>
+              {data.semesters.map((sem) => (
+                <button
+                  key={sem.id}
+                  onClick={() => setSelectedSemesterId(sem.id)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                    activeSemesterId === sem.id
+                      ? "bg-primary border-primary text-white"
+                      : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300"
+                  }`}
+                >
+                  ภาค {sem.name}
+                  {sem.isCurrent && (
+                    <span className={`ml-1.5 text-xs ${activeSemesterId === sem.id ? "text-white/80" : "text-green-600"}`}>
+                      
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {data.stats.map((stat) => {
             const Icon = getIcon(stat.id);
@@ -101,6 +147,7 @@ export default function TeacherDashboard() {
           })}
         </div>
 
+        {/* My Courses Table */}
         <Card className="p-6 border border-slate-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900">วิชาของฉัน</h2>
@@ -136,12 +183,13 @@ export default function TeacherDashboard() {
               </table>
             ) : (
               <div className="text-center py-6 text-slate-500">
-                ยังไม่มีวิชาที่อยู่ในความดูแล
+                ไม่มีวิชาในภาคเรียนนี้
               </div>
             )}
           </div>
         </Card>
 
+        {/* Announcements */}
         <Card className="p-6 border border-slate-200">
           <div className="flex items-center gap-2 mb-4">
             <Bell size={20} className="text-slate-900" />

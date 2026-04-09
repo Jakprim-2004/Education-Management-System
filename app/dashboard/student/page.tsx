@@ -93,13 +93,13 @@ export default function StudentDashboard() {
                           <h3 className="font-medium text-slate-900 mt-1">{course.name}</h3>
                           <p className="text-sm text-slate-600">{course.instructor}</p>
                         </div>
-                        <span className={`text-xs px-2 py-1 rounded font-medium ${course.status === "completed" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
-                          {course.status === "completed" ? "เรียนจบแล้ว" : "กำลังเรียน"}
+                        <span className={`text-xs px-2 py-1 rounded font-medium ${course.status === "completed" || (course.grade && course.grade !== "-") ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+                          {course.status === "completed" || (course.grade && course.grade !== "-") ? "เรียนเสร็จแล้ว" : "กำลังเรียน"}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="w-full bg-slate-200 rounded-full h-2 mr-3">
-                          <div className="bg-primary h-2 rounded-full" style={{ width: course.status === "completed" ? "100%" : "75%" }} />
+                          <div className="bg-primary h-2 rounded-full" style={{ width: course.status === "completed" || (course.grade && course.grade !== "-") ? "100%" : "75%" }} />
                         </div>
                         <span className="text-sm font-bold text-slate-900">{course.grade}</span>
                       </div>

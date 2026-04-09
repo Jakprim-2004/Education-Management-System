@@ -166,11 +166,11 @@ export default function TeacherCourses() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button size="sm" className="flex-1">
-                    เข้าชั้นเรียน
+                  <Button size="sm" className="flex-1" asChild>
+                    <a href="/students/teacher">ดูรายชื่อนิสิต / ให้เกรด</a>
                   </Button>
-                  <Button size="sm" variant="outline" className="flex-1">
-                    ตั้งค่า
+                  <Button size="sm" variant="outline" className="flex-1" asChild>
+                    <a href="/makeup-class/teacher">นัดสอนชดเชย</a>
                   </Button>
                 </div>
               </div>

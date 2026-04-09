@@ -16,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="th">
+    <html lang="th" suppressHydrationWarning>
       <body style={{ fontFamily: "'Inter', sans-serif" }}>
         <Providers>
           <TooltipProvider>
