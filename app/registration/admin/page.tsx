@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { CheckCircle, XCircle, Clock, Loader2, BookOpen, Filter, Search, ChevronLeft, ChevronRight, Eye, X, User } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useCallback } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface RegistrationRequest {
   id: string;
@@ -32,6 +33,7 @@ interface StudentGroup {
 
 export default function AdminRegistration() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState("pending");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -73,13 +75,21 @@ export default function AdminRegistration() {
       return res.json();
     },
     onSuccess: (data) => {
-      alert(data.message);
+      toast({
+        title: "สำเร็จ",
+        description: data.message || "ดำเนินการเรียบร้อย",
+        className: "bg-green-50 text-green-900 border-green-200"
+      });
       setSelectedIds([]);
       setModalStudent(null);
       queryClient.invalidateQueries({ queryKey: ['adminRegistration'] });
     },
     onError: () => {
-      alert("เกิดข้อผิดพลาด โปรดลองอีกครั้ง");
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "เกิดข้อผิดพลาด โปรดลองอีกครั้ง",
+        variant: "destructive"
+      });
     }
   });
 
@@ -132,7 +142,11 @@ export default function AdminRegistration() {
   const handleAction = (action: "approve" | "reject", ids?: string[]) => {
     const targetIds = ids || selectedIds;
     if (targetIds.length === 0) {
-      alert("กรุณาเลือกรายการก่อน");
+      toast({
+        title: "คำเตือน",
+        description: "กรุณาเลือกรายการก่อน",
+        variant: "destructive"
+      });
       return;
     }
     const msg = action === "approve"

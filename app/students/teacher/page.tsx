@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Download, Save, Loader2, CheckCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface Student {
   id: string;
@@ -34,6 +35,7 @@ const GRADE_OPTIONS = ["A", "B+", "B", "C+", "C", "D+", "D", "F", "W", "I"];
 
 export default function TeacherStudentList() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
   const [editedRows, setEditedRows] = useState<Record<string, EditedRow>>({});
@@ -58,12 +60,20 @@ export default function TeacherStudentList() {
       return res.json();
     },
     onSuccess: (data) => {
-      alert(data.message);
+      toast({
+        title: "สำเร็จ",
+        description: data.message || "บันทึกเรียบร้อย",
+        className: "bg-green-50 text-green-900 border-green-200"
+      });
       setEditedRows({});
       queryClient.invalidateQueries({ queryKey: ['teacherStudents'] });
     },
     onError: () => {
-      alert("เกิดข้อผิดพลาดในการบันทึก");
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "เกิดข้อผิดพลาดในการบันทึก",
+        variant: "destructive"
+      });
     }
   });
 
@@ -119,7 +129,11 @@ export default function TeacherStudentList() {
       ...data
     }));
     if (grades.length === 0) {
-      alert("ยังไม่มีข้อมูลที่เปลี่ยนแปลง");
+      toast({
+        title: "คำเตือน",
+        description: "ยังไม่มีข้อมูลที่เปลี่ยนแปลง",
+        variant: "destructive"
+      });
       return;
     }
     if (confirm(`บันทึก ${grades.length} รายการ?`)) {

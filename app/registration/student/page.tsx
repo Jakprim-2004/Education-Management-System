@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertCircle, Clock, Loader2, BookPlus, ChevronRight, Printer } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface RegistrationItem {
   id: string;
@@ -24,6 +25,7 @@ interface RegistrationItem {
 
 export default function StudentRegistration() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [selectedSemester, setSelectedSemester] = useState<string>("");
 
   const { data: regData, isLoading, isError } = useQuery({
@@ -47,14 +49,26 @@ export default function StudentRegistration() {
     },
     onSuccess: (data) => {
       if (data.errors && data.errors.length > 0) {
-        alert(`ลงทะเบียนส่วนใหญ่สำเร็จ แต่มีบางรายการผิดพลาด: ${data.errors.join(", ")}`);
+        toast({
+          title: "มีบางรายการผิดพลาด",
+          description: `ลงทะเบียนส่วนใหญ่สำเร็จ แต่มีบางรายการผิดพลาด: ${data.errors.join(", ")}`,
+          variant: "destructive"
+        });
       } else {
-        alert("ทำรายการเสร็จสมบูรณ์! สถานะ: รอพิจารณาอนุมัติ");
+        toast({
+          title: "สำเร็จ",
+          description: "ทำรายการเสร็จสมบูรณ์! สถานะ: รอพิจารณาอนุมัติ",
+          className: "bg-green-50 text-green-900 border-green-200"
+        });
       }
       queryClient.invalidateQueries({ queryKey: ["studentRegistration"] });
     },
     onError: () => {
-      alert("เกิดข้อผิดพลาดในการทำรายการ โปรดลองอีกครั้ง");
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "เกิดข้อผิดพลาดในการทำรายการ โปรดลองอีกครั้ง",
+        variant: "destructive"
+      });
     }
   });
 
@@ -234,7 +248,11 @@ export default function StudentRegistration() {
                     semester: selectedSemester
                   }));
                   if (enrollPayload.length === 0) {
-                    alert("ไม่มีวิชาในแผนให้ลงทะเบียน");
+                    toast({
+                      title: "คำเตือน",
+                      description: "ไม่มีวิชาในแผนให้ลงทะเบียน",
+                      variant: "destructive"
+                    });
                     return;
                   }
                   if(confirm("ยืนยันการส่งรายการรายวิชาในแผนเพื่อลงทะเบียนเรียน (รออาจารย์ที่ปรึกษาอนุมัติ)?")) {
