@@ -255,7 +255,7 @@ export default function StudentRegistration() {
                     });
                     return;
                   }
-                  if(confirm("ยืนยันการส่งรายการรายวิชาในแผนเพื่อลงทะเบียนเรียน (รออาจารย์ที่ปรึกษาอนุมัติ)?")) {
+                  if(confirm("ยืนยันการส่งรายการรายวิชาในแผนเพื่อลงทะเบียนเรียน?")) {
                     enrollMutation.mutate(enrollPayload);
                   }
                 }}

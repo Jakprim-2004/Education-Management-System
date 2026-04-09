@@ -460,7 +460,7 @@ export default function StudentProfile() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                โปรแกรม
+                วิทยาการคอมพิวเตอร์ (Computer Science)
               </label>
               <p className="text-slate-900">{profile.program}</p>
             </div>
@@ -469,12 +469,6 @@ export default function StudentProfile() {
                 ปีที่เข้าศึกษา (รหัส 2 ตัวแรก)
               </label>
               <p className="text-slate-900">{profile.admissionYear}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                อาจารย์ที่ปรึกษา 
-              </label>
-              <p className="text-slate-900">{profile.academicAdvisor || "-"}</p>
             </div>
           </div>
         </Card>

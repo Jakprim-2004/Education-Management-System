@@ -439,12 +439,6 @@ export default function TeacherProfile() {
                 <p className="text-slate-900">{profile.specialization || "-"}</p>
               )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                จำนวน Section ที่สอน
-              </label>
-              <p className="text-slate-900">{profile.activeSections} เซกชัน</p>
-            </div>
           </div>
         </Card>
 
