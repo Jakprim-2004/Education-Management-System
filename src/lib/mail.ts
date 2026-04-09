@@ -1,5 +1,5 @@
-const MAILERSEND_API_KEY = "mlsn.399cfecbbf4c45f4a4e8837fd557fd4d4eb0ec22d3f70c6a93005a33874488ff";
-const SENDER_DOMAIN = "test-zxk54v80mo6ljy6v.mlsender.net";
+const MAILERSEND_API_KEY = "mlsn.c533030f59c25d0214029975a183b7c8ed28f35b6c10881cd71e113cd5ca47f5";
+const SENDER_DOMAIN = "test-51ndgwv8q0xlzqx8.mlsender.net";
 
 export async function sendPasswordResetEmail(email: string, resetLink: string) {
   const payload = {
