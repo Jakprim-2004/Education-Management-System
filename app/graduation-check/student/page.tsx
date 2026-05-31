@@ -1,10 +1,11 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, AlertCircle, Clock, BookOpen, Download, Loader2 } from "lucide-react";
+import { CheckCircle, AlertCircle, Clock, BookOpen, Download, Loader2, Ban, ArrowRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 interface CurriculumRequirement {
@@ -65,6 +66,38 @@ export default function StudentGraduationCheck() {
   const passed = requirements.filter((r) => r.status === "ผ่าน");
   const inProgress = requirements.filter((r) => r.status === "กำลังเรียน");
   const remaining = requirements.filter((r) => r.status === "ยังไม่ลงทะเบียน");
+  const failed = requirements.filter((r) => r.grade === "F");
+
+  // Fetch prerequisite impact for failed courses
+  const [impactData, setImpactData] = useState<any[]>([]);
+  useEffect(() => {
+    if (failed.length === 0) return;
+    const fetchImpact = async () => {
+      const results = [];
+      for (const f of failed) {
+        try {
+          const idRes = await fetch(`/api/prerequisites?courseId=0&action=view`);
+          // ใช้ course code หา ID จาก requirements
+          const allPrereqs = await fetch(`/api/prerequisites`);
+          const allData = await allPrereqs.json();
+          if (allData.success) {
+            // หา courseId จาก prerequisite data
+            const matchedPrereqs = allData.data.filter((p: any) => p.prerequisite.code === f.code);
+            if (matchedPrereqs.length > 0) {
+              results.push({
+                failedCourse: f,
+                blockedCourses: matchedPrereqs.map((p: any) => p.course),
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Impact fetch error:', e);
+        }
+      }
+      setImpactData(results);
+    };
+    fetchImpact();
+  }, [requirements.length]);
   
   const progressPercent = stats.totalCredits > 0 
     ? Math.round((stats.passedCredits / stats.totalCredits) * 100) 
@@ -162,6 +195,44 @@ export default function StudentGraduationCheck() {
             </div>
           </div>
         </Card>
+
+        {/* Failed Courses Impact Analysis */}
+        {impactData.length > 0 && (
+          <Card className="p-6 border-2 border-orange-300 bg-orange-50">
+            <h2 className="text-lg font-bold text-orange-800 mb-2 flex items-center gap-2">
+              <Ban size={20} className="text-orange-600" />
+              ผลกระทบจากวิชาที่ไม่ผ่าน (Reverse Dependency)
+            </h2>
+            <p className="text-sm text-orange-700 mb-4">
+              วิชาที่ได้เกรด F ทำให้ไม่สามารถลงทะเบียนวิชาต่อไปนี้ได้ จนกว่าจะเรียนผ่าน
+            </p>
+            <div className="space-y-4">
+              {impactData.map((impact, idx) => (
+                <div key={idx} className="bg-white rounded-lg border border-orange-200 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">F</span>
+                    <code className="text-sm font-mono font-bold text-red-600">{impact.failedCourse.code}</code>
+                    <span className="text-sm font-medium text-slate-900">{impact.failedCourse.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 ml-4 mb-2">
+                    <ArrowRight size={14} className="text-orange-500" />
+                    <span className="text-xs text-orange-700 font-medium">วิชาที่ถูกบล็อค:</span>
+                  </div>
+                  <div className="space-y-1 ml-8">
+                    {impact.blockedCourses.map((blocked: any) => (
+                      <div key={blocked.id} className="flex items-center gap-2 p-2 bg-orange-50 rounded border border-orange-100">
+                        <Ban size={14} className="text-orange-500" />
+                        <code className="text-xs font-mono font-bold text-slate-700">{blocked.code}</code>
+                        <span className="text-xs text-slate-600">{blocked.name}</span>
+                        <span className="text-xs text-slate-500 ml-auto">{blocked.credits} หน่วยกิต</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* Remaining Highlight */}
         {remaining.length > 0 && (

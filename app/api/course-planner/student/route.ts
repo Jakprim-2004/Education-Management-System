@@ -37,9 +37,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Student profile not found" }, { status: 404 });
     }
 
-    // Find the curriculum for this student's department
+    // Find the curriculum matching student's admissionYear:
+    // Get the latest active curriculum where curriculum.year <= student.admissionYear
     const curriculum = await prisma.curriculum.findFirst({
-      where: { departmentId: student.departmentId },
+      where: {
+        departmentId: student.departmentId,
+        status: "active",
+        year: { lte: student.admissionYear },
+      },
+      orderBy: { year: "desc" },
       include: {
         curriculumCourses: {
           include: { course: true },
@@ -49,19 +55,21 @@ export async function GET(request: NextRequest) {
     });
 
     // Build completed/enrolled course sets
+    const studentWithEnrollments = student as any;
     const completedCourseIds = new Set(
-      student.enrollments
+      studentWithEnrollments.enrollments
         .filter((e: any) => e.grade && e.grade !== "F")
         .map((e: any) => e.section.courseId)
     );
     const enrolledCourseIds = new Set(
-      student.enrollments.map((e: any) => e.section.courseId)
+      studentWithEnrollments.enrollments.map((e: any) => e.section.courseId)
     );
 
     // Build required courses from curriculum (grouped by year/semester)
     const requiredCourses: any[] = [];
-    if (curriculum) {
-      for (const cc of curriculum.curriculumCourses) {
+    const curriculumData = curriculum as any;
+    if (curriculumData) {
+      for (const cc of curriculumData.curriculumCourses) {
         const course = cc.course;
         let status: "completed" | "in-progress" | "planned" = "planned";
         if (completedCourseIds.has(course.id)) status = "completed";
@@ -83,7 +91,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build custom planned courses (elective/general added by student)
-    const customCourses: any[] = student.coursePlans.map((plan: any) => {
+    const customCourses: any[] = studentWithEnrollments.coursePlans.map((plan: any) => {
       let status: "completed" | "in-progress" | "planned" =
         (plan.status as any) || "planned";
       if (completedCourseIds.has(plan.courseId)) status = "completed";
@@ -103,12 +111,46 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Merge and deduplicate (custom overrides required if same course)
     const requiredCourseIds = new Set(requiredCourses.map((c) => c.courseId));
     const filteredCustom = customCourses.filter(
       (c) => !requiredCourseIds.has(c.courseId)
     );
-    const allCourses = [...requiredCourses, ...filteredCustom];
+    let allCourses = [...requiredCourses, ...filteredCustom];
+
+    // Fetch prerequisites for warning evaluation
+    const allPrereqs = await prisma.coursePrerequisite.findMany({
+      include: { prerequisite: true }
+    });
+
+    allCourses = allCourses.map(course => {
+      const prereqs = allPrereqs.filter(p => p.courseId === course.courseId);
+      let prerequisiteWarning = null;
+
+      if (prereqs.length > 0) {
+        for (const p of prereqs) {
+          // If already completed, then it's fine
+          if (completedCourseIds.has(p.prerequisiteId)) continue;
+          
+          // Find when the prerequisite is planned
+          const plannedPrereq = allCourses.find(c => c.courseId === p.prerequisiteId);
+          if (!plannedPrereq) {
+            prerequisiteWarning = `ต้องผ่าน ${p.prerequisite.code} ก่อน`;
+            break;
+          }
+
+          // If planned in same or later semester, it's a warning
+          if (
+            plannedPrereq.yearLevel > course.yearLevel || 
+            (plannedPrereq.yearLevel === course.yearLevel && plannedPrereq.semester >= course.semester)
+          ) {
+            prerequisiteWarning = `ต้องเรียน ${p.prerequisite.code} ก่อน (จัดแผนผิดลำดับ)`;
+            break;
+          }
+        }
+      }
+
+      return { ...course, prerequisiteWarning };
+    });
 
     // Determine max year levels
     const maxYear = Math.max(
@@ -141,9 +183,9 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         courses: allCourses,
-        maxYear,
+        maxYear: Math.max(5, maxYear), // Support up to Year 5
         addableCourses,
-        curriculumName: curriculum?.name || null,
+        curriculumName: curriculumData?.name || null,
       },
     });
   } catch (error: any) {

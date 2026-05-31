@@ -6,7 +6,7 @@ import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, Search, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, Loader2, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,6 +20,7 @@ interface Course {
   department?: string;
   coordinatorId?: string;
   coordinatorName?: string;
+  prerequisites?: { id: string; code: string; name: string }[];
 }
 
 export default function AdminCourses() {
@@ -31,6 +32,8 @@ export default function AdminCourses() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [teacherSearch, setTeacherSearch] = useState("");
   const [showTeacherDropdown, setShowTeacherDropdown] = useState(false);
+  const [prereqSearch, setPrereqSearch] = useState("");
+  const [showPrereqDropdown, setShowPrereqDropdown] = useState(false);
   
   const [formData, setFormData] = useState({
     code: "",
@@ -42,7 +45,8 @@ export default function AdminCourses() {
     dayOfWeek: "MON",
     startTime: "09:00",
     endTime: "12:00",
-    room: ""
+    room: "",
+    prerequisites: [] as { id: string; code: string; name: string }[]
   });
 
   // Fetch Courses
@@ -141,9 +145,11 @@ export default function AdminCourses() {
     setEditingId(null);
     setTeacherSearch("");
     setShowTeacherDropdown(false);
+    setPrereqSearch("");
+    setShowPrereqDropdown(false);
     setFormData({ 
       code: "", name: "", credits: 3, type: "วิชาบังคับ", description: "", coordinatorId: "",
-      dayOfWeek: "MON", startTime: "09:00", endTime: "12:00", room: ""
+      dayOfWeek: "MON", startTime: "09:00", endTime: "12:00", room: "", prerequisites: []
     });
   };
 
@@ -159,7 +165,8 @@ export default function AdminCourses() {
       dayOfWeek: c.dayOfWeek || "MON",
       startTime: c.startTime || "09:00",
       endTime: c.endTime || "12:00",
-      room: c.room || ""
+      room: c.room || "",
+      prerequisites: c.prerequisites || []
     });
     setTeacherSearch(c.coordinatorName && c.coordinatorName !== "ไม่ระบุ" ? c.coordinatorName : "");
     setShowForm(true);
@@ -168,10 +175,15 @@ export default function AdminCourses() {
   const handleSubmit = () => {
     if (!formData.code || !formData.name) return;
 
+    const submitData = {
+      ...formData,
+      prerequisites: formData.prerequisites.map(p => p.id)
+    };
+
     if (editingId) {
-      updateMutation.mutate({ id: editingId, ...formData });
+      updateMutation.mutate({ id: editingId, ...submitData });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(submitData);
     }
   };
 
@@ -353,6 +365,67 @@ export default function AdminCourses() {
                       ).length === 0 && (
                         <div className="px-3 py-2 text-sm text-slate-400">ไม่พบอาจารย์</div>
                       )}
+                    </div>
+                  )}
+                </div>
+                <div className="relative">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">วิชาบังคับก่อน (Prerequisites)</label>
+                  <Input
+                    placeholder="พิมพ์ค้นหารหัส หรือ ชื่อวิชา..."
+                    value={prereqSearch}
+                    onChange={(e) => {
+                      setPrereqSearch(e.target.value);
+                      setShowPrereqDropdown(true);
+                    }}
+                    onFocus={() => setShowPrereqDropdown(true)}
+                  />
+                  {showPrereqDropdown && prereqSearch && (
+                    <div className="absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {courses
+                        .filter((c: any) =>
+                          c.id !== editingId && // Prevent self-referencing
+                          !formData.prerequisites.some(p => p.id === c.id) && // Prevent duplicates
+                          (c.name.toLowerCase().includes(prereqSearch.toLowerCase()) ||
+                           c.code.toLowerCase().includes(prereqSearch.toLowerCase()))
+                        )
+                        .slice(0, 8)
+                        .map((c: any) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ 
+                                ...formData, 
+                                prerequisites: [...formData.prerequisites, { id: c.id, code: c.code, name: c.name }] 
+                              });
+                              setPrereqSearch("");
+                              setShowPrereqDropdown(false);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 transition-colors flex items-center justify-between"
+                          >
+                            <span className="font-medium text-slate-900">{c.name}</span>
+                            <code className="text-xs text-orange-600 font-bold">{c.code}</code>
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                  {formData.prerequisites.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {formData.prerequisites.map(p => (
+                        <div key={p.id} className="flex items-center gap-1 bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-md border border-orange-200">
+                          <span className="font-bold font-mono">{p.code}</span>
+                          <button 
+                            type="button"
+                            onClick={() => setFormData({
+                              ...formData,
+                              prerequisites: formData.prerequisites.filter(pr => pr.id !== p.id)
+                            })}
+                            className="text-orange-500 hover:text-orange-700 ml-1"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

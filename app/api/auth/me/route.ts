@@ -18,9 +18,9 @@ export async function GET(request: NextRequest) {
 
     // Optionally fetch more user data from Prisma if needed
     const user = await prisma.user.findUnique({
-      where: { user_id: payload.userId },
+      where: { id: payload.userId },
       select: {
-        user_id: true,
+        id: true,
         email: true,
         role: true,
       }
@@ -32,9 +32,9 @@ export async function GET(request: NextRequest) {
 
     let profile = null;
     if (user.role === "student") {
-      profile = await prisma.student.findFirst({ where: { user_id: user.user_id }});
+      profile = await prisma.student.findFirst({ where: { userId: user.id }});
     } else if (user.role === "teacher") {
-      profile = await prisma.teacher.findFirst({ where: { user_id: user.user_id }});
+      profile = await prisma.teacher.findFirst({ where: { userId: user.id }});
     }
 
     return NextResponse.json({

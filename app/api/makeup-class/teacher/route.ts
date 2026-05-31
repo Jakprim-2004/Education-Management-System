@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     if (!teacher) return NextResponse.json({ message: "Teacher not found" }, { status: 404 });
 
     // 1. Build a list of teacher's active sections for the course selector
-    const sections = teacher.courseSections.map(section => ({
+    const sections = (teacher as any).courseSections.map((section: any) => ({
       sectionId: section.id,
       courseCode: section.course.code,
       courseName: section.course.name,
@@ -54,11 +54,11 @@ export async function GET(request: NextRequest) {
 
     // 2. Format Students & their full schedules
     const studentsMap = new Map();
-    teacher.courseSections.forEach(section => {
+    (teacher as any).courseSections.forEach((section: any) => {
       section.enrollments.forEach(enr => {
         const sid = enr.student.id.toString();
         if (!studentsMap.has(sid)) {
-          const studentCourses = enr.student.enrollments.map(studentEnr => {
+          const studentCourses = (enr.student as any).enrollments.map((studentEnr: any) => {
             const sch = studentEnr.section.schedules[0];
             const thaiDays: Record<string, string> = {
               "monday": "จันทร์", "tuesday": "อังคาร", "wednesday": "พุธ", 
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     // 3. Format existing makeup class requests (history)
     const requests: any[] = [];
 
-    teacher.makeupClasses.forEach(mc => {
+    (teacher as any).makeupClasses.forEach((mc: any) => {
       const start = new Date(mc.startTime).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit"});
       const end = new Date(mc.endTime).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit"});
       

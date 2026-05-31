@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     // 2. Build semester list from teacher's sections
     const semesterMap = new Map<number, { id: number; name: string; isCurrent: boolean }>();
-    teacher.courseSections.forEach(section => {
+    (teacher as any).courseSections.forEach((section: any) => {
       if (!semesterMap.has(section.semester.id)) {
         semesterMap.set(section.semester.id, {
           id: section.semester.id,
@@ -81,8 +81,8 @@ export async function GET(request: NextRequest) {
 
     // 4. Filter courses by selected semester & compute stats
     const filteredSections = selectedSemesterId
-      ? teacher.courseSections.filter(s => s.semester.id === selectedSemesterId)
-      : teacher.courseSections;
+      ? (teacher as any).courseSections.filter((s: any) => s.semester.id === selectedSemesterId)
+      : (teacher as any).courseSections;
 
     let totalStudents = 0;
     let totalGradePoints = 0;
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       "A": 4.0, "B+": 3.5, "B": 3.0, "C+": 2.5, "C": 2.0, "D+": 1.5, "D": 1.0, "F": 0.0
     };
 
-    const myCourses = filteredSections.map((section) => {
+    const myCourses = filteredSections.map((section: any) => {
       totalStudents += section._count.enrollments;
 
       // Calculate average grade for this section

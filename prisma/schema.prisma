@@ -223,8 +223,22 @@ model Course {
   curriculumCourses CurriculumCourse[]
   courseSections    CourseSection[]
   coursePlans       CoursePlan[]
+  prerequisites     CoursePrerequisite[] @relation("CoursePrereqs")
+  isPrerequisiteOf  CoursePrerequisite[] @relation("PrereqOf")
 
   @@map("courses")
+}
+
+model CoursePrerequisite {
+  id             Int @id @default(autoincrement())
+  courseId        Int @map("course_id")
+  prerequisiteId Int @map("prerequisite_id")
+
+  course       Course @relation("CoursePrereqs", fields: [courseId], references: [id], onDelete: Cascade)
+  prerequisite Course @relation("PrereqOf", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, prerequisiteId])
+  @@map("course_prerequisites")
 }
 
 model CurriculumCourse {

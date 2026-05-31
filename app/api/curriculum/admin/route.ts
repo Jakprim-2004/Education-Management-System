@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const deptParam = searchParams.get("departmentId");
+    const curriculumYearParam = searchParams.get("curriculumYear");
     
     // Fallback to department ID 1 if not specified
     let departmentId = deptParam ? parseInt(deptParam) : undefined;
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (!departmentId) {
       const firstDept = await prisma.department.findFirst();
       if (!firstDept) {
-        return NextResponse.json({ success: true, data: { plans: [], department: null } }, { status: 200 });
+        return NextResponse.json({ success: true, data: { plans: [], department: null, availableCurricula: [] } }, { status: 200 });
       }
       departmentId = firstDept.id;
     }
@@ -31,30 +32,62 @@ export async function GET(request: NextRequest) {
       where: { id: departmentId }
     });
 
-    const curriculum = await prisma.curriculum.findFirst({
-      where: { 
+    // Fetch all active curricula for the dropdown
+    const availableCurricula = await prisma.curriculum.findMany({
+      where: {
         departmentId: departmentId,
         status: "active"
       },
-      include: {
-        curriculumCourses: {
-          include: {
-            course: true
-          },
-          orderBy: [
-            { yearLevel: 'asc' },
-            { semester: 'asc' }
-          ]
-        }
-      }
+      select: { id: true, name: true, year: true },
+      orderBy: { year: "desc" }
     });
+
+    // Find the specific curriculum: by curriculumYear param, or latest active
+    let curriculum;
+    if (curriculumYearParam) {
+      curriculum = await prisma.curriculum.findFirst({
+        where: { 
+          departmentId: departmentId,
+          status: "active",
+          year: parseInt(curriculumYearParam)
+        },
+        include: {
+          curriculumCourses: {
+            include: { course: true },
+            orderBy: [
+              { yearLevel: 'asc' },
+              { semester: 'asc' }
+            ]
+          }
+        }
+      });
+    } else {
+      curriculum = await prisma.curriculum.findFirst({
+        where: { 
+          departmentId: departmentId,
+          status: "active"
+        },
+        orderBy: { year: "desc" },
+        include: {
+          curriculumCourses: {
+            include: { course: true },
+            orderBy: [
+              { yearLevel: 'asc' },
+              { semester: 'asc' }
+            ]
+          }
+        }
+      });
+    }
 
     if (!curriculum) {
        return NextResponse.json({ 
         success: true, 
         data: { 
           plans: [], 
-          department: department?.name || "ไม่ระบุภาควิชา" 
+          department: department?.name || "ไม่ระบุภาควิชา",
+          availableCurricula,
+          currentCurriculumYear: null
         } 
       }, { status: 200 });
     }
@@ -105,7 +138,9 @@ export async function GET(request: NextRequest) {
       success: true, 
       data: { 
         plans, 
-        department: department?.name || "ไม่ระบุภาควิชา" 
+        department: department?.name || "ไม่ระบุภาควิชา",
+        availableCurricula,
+        currentCurriculumYear: curriculum.year
       } 
     }, { status: 200 });
 

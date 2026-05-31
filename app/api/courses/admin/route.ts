@@ -41,6 +41,9 @@ export async function GET(request: NextRequest) {
         coordinator: { include: { user: true } },
         courseSections: {
           include: { schedules: true }
+        },
+        prerequisites: {
+          include: { prerequisite: true }
         }
       }
     });
@@ -75,7 +78,12 @@ export async function GET(request: NextRequest) {
         dayOfWeek: schedule?.dayOfWeek || "MON",
         startTime: sTime || "09:00",
         endTime: eTime || "12:00",
-        room: schedule?.room || "TBA"
+        room: schedule?.room || "TBA",
+        prerequisites: (course as any).prerequisites?.map((p: any) => ({
+          id: p.prerequisite.id.toString(),
+          code: p.prerequisite.code,
+          name: p.prerequisite.name
+        })) || []
       };
     });
 
@@ -97,7 +105,7 @@ export async function POST(request: NextRequest) {
     if (!payload || payload.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
     const body = await request.json();
-    const { code, name, credits, type, description, dayOfWeek, startTime, endTime, room, coordinatorId } = body;
+    const { code, name, credits, type, description, dayOfWeek, startTime, endTime, room, coordinatorId, prerequisites } = body;
 
     let pType: CourseType = "general" as CourseType;
     if (type === "วิชาบังคับ") pType = "required" as CourseType;
@@ -177,7 +185,12 @@ export async function POST(request: NextRequest) {
               }
             }
           }
-        }
+        },
+        prerequisites: Array.isArray(prerequisites) && prerequisites.length > 0 ? {
+          create: prerequisites.map((pId: string) => ({
+            prerequisiteId: parseInt(pId)
+          }))
+        } : undefined
       }
     });
 
@@ -199,7 +212,7 @@ export async function PUT(request: NextRequest) {
     if (!payload || payload.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
     const body = await request.json();
-    const { id, code, name, credits, type, description, dayOfWeek, startTime, endTime, room, coordinatorId } = body;
+    const { id, code, name, credits, type, description, dayOfWeek, startTime, endTime, room, coordinatorId, prerequisites } = body;
 
     let pType: CourseType = "general" as CourseType;
     if (type === "วิชาบังคับ") pType = "required" as CourseType;
@@ -216,6 +229,19 @@ export async function PUT(request: NextRequest) {
         coordinatorId: coordinatorId ? parseInt(coordinatorId) : null
       }
     });
+
+    if (Array.isArray(prerequisites)) {
+      // Reset and recreate prerequisites
+      await prisma.coursePrerequisite.deleteMany({ where: { courseId: parseInt(id) } });
+      if (prerequisites.length > 0) {
+        await prisma.coursePrerequisite.createMany({
+          data: prerequisites.map((pId: string) => ({
+            courseId: parseInt(id),
+            prerequisiteId: parseInt(pId)
+          }))
+        });
+      }
+    }
 
     if (dayOfWeek || startTime || endTime || room !== undefined) {
       const section = await prisma.courseSection.findFirst({ where: { courseId: parseInt(id) } });
@@ -283,6 +309,8 @@ export async function DELETE(request: NextRequest) {
     const courseId = parseInt(id);
 
     // 1. Cascade delete all relation records including student course plans and curriculums
+    await prisma.coursePrerequisite.deleteMany({ where: { courseId } });
+    await prisma.coursePrerequisite.deleteMany({ where: { prerequisiteId: courseId } });
     await prisma.curriculumCourse.deleteMany({ where: { courseId } });
     await prisma.coursePlan.deleteMany({ where: { courseId } });
     

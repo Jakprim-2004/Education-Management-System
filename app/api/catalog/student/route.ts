@@ -31,8 +31,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
+    const student = await prisma.student.findUnique({
+      where: { userId: payload.userId }
+    });
+
+    if (!student) {
+      return NextResponse.json({ message: "Student not found" }, { status: 404 });
+    }
+
+    // Find student's curriculum
+    const curriculum = await prisma.curriculum.findFirst({
+      where: {
+        departmentId: student.departmentId,
+        year: { lte: student.admissionYear },
+        status: 'active'
+      },
+      orderBy: { year: 'desc' }
+    });
+
+    let allowedCourseIds: number[] | null = null;
+    if (curriculum) {
+      const curCourses = await prisma.curriculumCourse.findMany({
+        where: { curriculumId: curriculum.id },
+        select: { courseId: true }
+      });
+      allowedCourseIds = curCourses.map(c => c.courseId);
+    }
+
     // Fetch all courses with their sections, schedules, and teacher info
     const courses = await prisma.course.findMany({
+      where: allowedCourseIds ? {
+        OR: [
+          { id: { in: allowedCourseIds } },
+          { type: { in: ["elective", "general"] } }
+        ]
+      } : undefined,
       include: {
         department: true,
         courseSections: {
@@ -45,6 +78,11 @@ export async function GET(request: NextRequest) {
             _count: {
               select: { enrollments: true }
             }
+          }
+        },
+        prerequisites: {
+          include: {
+            prerequisite: true
           }
         }
       },
@@ -80,7 +118,11 @@ export async function GET(request: NextRequest) {
         students: latestSection?._count?.enrollments || 0,
         description: course.description || "ไม่มีคำอธิบายรายวิชา",
         schedule: scheduleStr,
-        type: course.type
+        type: course.type,
+        prerequisites: (course as any).prerequisites?.map((p: any) => ({
+          code: p.prerequisite.code,
+          name: p.prerequisite.name
+        })) || []
       };
     });
 

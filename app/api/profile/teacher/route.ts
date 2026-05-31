@@ -40,22 +40,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Count active sections
-    const activeSections = teacher.courseSections.length;
+    const activeSections = (teacher as any).courseSections.length;
 
     return NextResponse.json({
       success: true,
       data: {
         teacherId: teacher.teacherCode,
-        firstName: teacher.user.firstName,
-        lastName: teacher.user.lastName,
-        email: teacher.user.email,
-        phone: teacher.user.phone || "",
-        department: teacher.department?.name || "ไม่ระบุภาควิชา",
-        faculty: teacher.department?.faculty?.name || "ไม่ระบุคณะ",
+        firstName: (teacher as any).user.firstName,
+        lastName: (teacher as any).user.lastName,
+        email: (teacher as any).user.email,
+        phone: (teacher as any).user.phone || "",
+        department: (teacher as any).department?.name || "ไม่ระบุภาควิชา",
+        faculty: (teacher as any).department?.faculty?.name || "ไม่ระบุคณะ",
         position: teacher.position || "",
         specialization: teacher.specialization || "",
         activeSections: activeSections,
-        avatarUrl: teacher.user.avatarUrl || null
+        avatarUrl: (teacher as any).user.avatarUrl || null
       }
     });
 

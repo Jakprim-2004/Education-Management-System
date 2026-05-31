@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Format for frontend
-    const courses = teacher.courseSections.map(section => {
+    const courses = (teacher as any).courseSections.map((section: any) => {
       // Mock class count / announcement count since they don't exist in Prisma
       let classes = 15; 
       let announcements = Math.floor(Math.random() * 5);

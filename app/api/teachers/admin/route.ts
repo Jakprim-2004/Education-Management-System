@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       orderBy: { user: { firstName: 'asc' } }
     });
 
-    const data = teachers.map(t => ({
+    const data = teachers.map((t: any) => ({
       id: t.id,
       name: `${t.user.firstName} ${t.user.lastName}`,
       code: t.teacherCode

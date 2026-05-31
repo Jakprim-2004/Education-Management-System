@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       "A": 4.0, "B+": 3.5, "B": 3.0, "C+": 2.5, "C": 2.0, "D+": 1.5, "D": 1.0, "F": 0.0
     };
 
-    student.enrollments.forEach(enrollment => {
+    (student as any).enrollments.forEach((enrollment: any) => {
       if (enrollment.grade) {
         const credits = enrollment.section.course.credits;
         totalCredits += credits;
@@ -69,18 +69,18 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         studentId: student.studentCode,
-        firstName: student.user.firstName,
-        lastName: student.user.lastName,
-        email: student.user.email,
-        phone: student.user.phone || "-",
-        department: student.department?.name || "ไม่ระบุภาควิชา",
-        faculty: student.department?.faculty?.name || "ไม่ระบุคณะ",
+        firstName: (student as any).user.firstName,
+        lastName: (student as any).user.lastName,
+        email: (student as any).user.email,
+        phone: (student as any).user.phone || "-",
+        department: (student as any).department?.name || "ไม่ระบุภาควิชา",
+        faculty: (student as any).department?.faculty?.name || "ไม่ระบุคณะ",
         admissionYear: String(student.admissionYear),
         gpa: gpa,
         totalCredits: String(totalCredits),
-        academicAdvisor: student.advisor ? `${student.advisor.user.firstName} ${student.advisor.user.lastName}` : "",
+        academicAdvisor: (student as any).advisor ? `${(student as any).advisor.user.firstName} ${(student as any).advisor.user.lastName}` : "",
         address: "", // Mock specific fixed field
-        avatarUrl: student.user.avatarUrl || null
+        avatarUrl: (student as any).user.avatarUrl || null
       }
     });
 

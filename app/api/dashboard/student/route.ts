@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     let completedCoursesCount = 0;
     let inProgressCount = 0;
 
-    const enrolledCourses = student.enrollments.map((enrollment) => {
+    const enrolledCourses = (student as any).enrollments.map((enrollment: any) => {
       if (enrollment.status === "completed") {
         totalCredits += enrollment.section.course.credits;
         completedCoursesCount++;
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     });
 
     const stats = [
-      { id: "registered", label: "วิชาลงทะเบียน", value: student.enrollments.length.toString(), color: "bg-blue-100 text-blue-600" },
+      { id: "registered", label: "วิชาลงทะเบียน", value: (student as any).enrollments.length.toString(), color: "bg-blue-100 text-blue-600" },
       { id: "in-progress", label: "กำลังเรียน", value: inProgressCount.toString(), color: "bg-yellow-100 text-yellow-600" },
       { id: "completed", label: "เรียนจบแล้ว", value: completedCoursesCount.toString(), color: "bg-green-100 text-green-600" },
       { id: "credits", label: "หน่วยกิตที่ได้", value: totalCredits.toString(), color: "bg-purple-100 text-purple-600" },

@@ -20,6 +20,7 @@ interface Course {
   description: string;
   schedule: string;
   type: string;
+  prerequisites: { code: string; name: string }[];
 }
 
 export default function CoursesCatalog() {
@@ -139,6 +140,18 @@ export default function CoursesCatalog() {
                   <p className="text-xs text-slate-500 line-clamp-2">
                     {course.description}
                   </p>
+                  {course.prerequisites && course.prerequisites.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-slate-100">
+                      <p className="text-xs font-semibold text-orange-600">วิชาบังคับก่อน:</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {course.prerequisites.map(p => (
+                          <span key={p.code} className="text-xs bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">
+                            {p.code}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-4 text-xs text-slate-600 border-t border-slate-200 pt-3">
@@ -228,6 +241,23 @@ export default function CoursesCatalog() {
                   </label>
                   <p className="text-slate-900">{selectedCourse.description}</p>
                 </div>
+
+                {selectedCourse.prerequisites && selectedCourse.prerequisites.length > 0 && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <label className="text-sm font-bold text-orange-800 mb-2 flex items-center gap-2">
+                      <BookOpen size={16} />
+                      รายวิชาบังคับก่อน (Prerequisites)
+                    </label>
+                    <ul className="list-disc list-inside space-y-1">
+                      {selectedCourse.prerequisites.map(p => (
+                        <li key={p.code} className="text-sm text-orange-900">
+                          <span className="font-mono font-bold mr-2">{p.code}</span>
+                          {p.name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2">

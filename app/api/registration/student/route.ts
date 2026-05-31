@@ -178,8 +178,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "No courses selected" }, { status: 400 });
     }
 
-    const student = await prisma.student.findUnique({ where: { userId: payload.userId } });
+    const student = await prisma.student.findUnique({ 
+      where: { userId: payload.userId },
+      include: { enrollments: { include: { section: true } } }
+    });
     if (!student) return NextResponse.json({ message: "Student not found" }, { status: 404 });
+
+    // Pre-calculate passed courses for prerequisite checking
+    const passedCourseIds = new Set<number>();
+    for (const enrollment of (student as any).enrollments) {
+      if (enrollment.grade && enrollment.grade !== "F") {
+        passedCourseIds.add(enrollment.section.courseId);
+      }
+    }
 
     const results = [];
     const errors = [];
@@ -222,8 +233,21 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Fetch course details for friendly error
-      const course = await prisma.course.findUnique({ where: { id: Number(courseId) } });
+      // Fetch course details for friendly error and prerequisite check
+      const course = await prisma.course.findUnique({ 
+        where: { id: Number(courseId) },
+        include: { prerequisites: { include: { prerequisite: true } } }
+      });
+
+      // --- Prerequisite Check ---
+      if (course?.prerequisites && course.prerequisites.length > 0) {
+        const unmetPrereqs = course.prerequisites.filter(p => !passedCourseIds.has(p.prerequisiteId));
+        if (unmetPrereqs.length > 0) {
+          const prereqNames = unmetPrereqs.map(p => p.prerequisite.code).join(", ");
+          errors.push(`วิชา ${course.code} ต้องผ่าน ${prereqNames} ก่อนลงทะเบียน`);
+          continue; // Skip registration for this course
+        }
+      }
 
       // Find the first available section for this course IN THE SPECIFIED SEMESTER
       let section = await prisma.courseSection.findFirst({

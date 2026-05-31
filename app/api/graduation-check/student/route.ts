@@ -20,26 +20,7 @@ export async function GET(request: NextRequest) {
     const student = await prisma.student.findUnique({
       where: { userId: payload.userId },
       include: {
-        department: {
-          include: {
-            curriculums: {
-              where: { status: "active" },
-              take: 1,
-              orderBy: { year: 'desc' },
-              include: {
-                curriculumCourses: {
-                  include: {
-                    course: true
-                  },
-                  orderBy: [
-                    { yearLevel: 'asc' },
-                    { semester: 'asc' }
-                  ]
-                }
-              }
-            }
-          }
-        },
+        department: true,
         enrollments: {
           include: {
             section: {
@@ -53,6 +34,28 @@ export async function GET(request: NextRequest) {
     if (!student) {
       return NextResponse.json({ message: "Student profile not found" }, { status: 404 });
     }
+
+    // Find the curriculum matching student's admissionYear:
+    // Get the latest active curriculum where curriculum.year <= student.admissionYear
+    const curriculum = await prisma.curriculum.findFirst({
+      where: {
+        departmentId: student.departmentId,
+        status: "active",
+        year: { lte: student.admissionYear }
+      },
+      orderBy: { year: 'desc' },
+      include: {
+        curriculumCourses: {
+          include: {
+            course: true
+          },
+          orderBy: [
+            { yearLevel: 'asc' },
+            { semester: 'asc' }
+          ]
+        }
+      }
+    });
 
     // Build a map of completed/in-progress courses
     const courseStatusMap = new Map<number, { status: string; grade?: string }>();
@@ -68,9 +71,6 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Get curriculum requirements
-    const curriculum = (student as any).department?.curriculums?.[0];
-
     if (!curriculum) {
       return NextResponse.json({
         success: true,
@@ -83,7 +83,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Map curriculum courses to requirements
-    const requirements = curriculum.curriculumCourses.map(cc => {
+    const curData = curriculum as any;
+    const requirements = curData.curriculumCourses.map((cc: any) => {
       const course = cc.course;
       const courseStatus = courseStatusMap.get(course.id);
 
@@ -126,8 +127,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        curriculumName: curriculum.name,
-        totalRequired: curriculum.totalCredits,
+        curriculumName: curData.name,
+        totalRequired: curData.totalCredits,
         requirements,
         stats: {
           passed: passed.length,

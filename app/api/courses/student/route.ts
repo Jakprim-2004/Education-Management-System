@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Map enrollments to courses array
-    const courses = student.enrollments.map(enrollment => {
+    const courses = (student as any).enrollments.map((enrollment: any) => {
       const section = enrollment.section;
       const courseStr = section.course;
       const teacher = section.teacher?.user;
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
       "A": 4.0, "B+": 3.5, "B": 3.0, "C+": 2.5, "C": 2.0, "D+": 1.5, "D": 1.0, "F": 0.0
     };
 
-    student.enrollments.forEach(enrollment => {
+    (student as any).enrollments.forEach((enrollment: any) => {
       if (enrollment.status === "completed" && enrollment.grade) {
         const credits = enrollment.section.course.credits;
         totalCredits += credits;

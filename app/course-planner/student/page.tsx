@@ -21,6 +21,7 @@ interface Course {
   semester: number;
   status: "planned" | "completed" | "in-progress";
   isRequired: boolean;
+  prerequisiteWarning?: string;
 }
 
 export default function StudentCoursePlanner() {
@@ -129,8 +130,8 @@ export default function StudentCoursePlanner() {
   const curriculumName = plannerData?.data?.curriculumName || "แผนการเรียน";
   const addableCourses = plannerData?.data?.addableCourses || [];
 
-  // Arrays for years
-  const years = Array.from({ length: Math.max(4, maxYear) }, (_, i) => i + 1);
+  // Arrays for years (up to 5)
+  const years = Array.from({ length: Math.max(5, maxYear) }, (_, i) => i + 1);
 
   const handleAddCourse = (courseCode: string, semester: number) => {
     addMutation.mutate({
@@ -211,6 +212,11 @@ export default function StudentCoursePlanner() {
                   <p className="text-xs text-slate-500 mt-1">
                     {course.credits} หน่วยกิต • {course.type === "elective" ? "เลือกเสรี" : course.type === "general" ? "ศึกษาทั่วไป" : "วิชาแกน/บังคับ"}
                   </p>
+                  {course.prerequisiteWarning && course.status === "planned" && (
+                    <div className="mt-1.5 flex items-center gap-1 text-[10px] text-orange-700 bg-orange-100/50 border border-orange-200 px-2 py-1 rounded-md">
+                      <span className="font-bold">⚠️ แจ้งเตือน:</span> {course.prerequisiteWarning}
+                    </div>
+                  )}
                 </div>
 
                 {!course.isRequired && (

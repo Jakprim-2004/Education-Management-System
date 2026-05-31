@@ -33,10 +33,13 @@ export default function AdminCurriculum() {
   const [newCourse, setNewCourse] = useState({ code: "", name: "", credits: 3, type: "วิชาบังคับ" as CurriculumCourse["type"], prerequisite: "" });
   const [localPlans, setLocalPlans] = useState<SemesterPlan[]>([]);
 
-  const { data: curriculumResponse, isLoading, isError, error } = useQuery({
-    queryKey: ['adminCurriculum'],
+  const [selectedCurriculumYear, setSelectedCurriculumYear] = useState<number | null>(null);
+
+  const { data: curriculumResponse, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['adminCurriculum', selectedCurriculumYear],
     queryFn: async () => {
-      const res = await fetch('/api/curriculum/admin');
+      const params = selectedCurriculumYear ? `?curriculumYear=${selectedCurriculumYear}` : '';
+      const res = await fetch(`/api/curriculum/admin${params}`);
       if (!res.ok) throw new Error('Failed to fetch curriculum data');
       return res.json();
     }
@@ -75,7 +78,8 @@ export default function AdminCurriculum() {
     if (curriculumResponse?.data?.plans) {
       const apiPlans = curriculumResponse.data.plans as SemesterPlan[];
       const fullPlans: SemesterPlan[] = [];
-      for (let y = 1; y <= 4; y++) {
+      const maxYear = 5; // รองรับถึงปี 5
+      for (let y = 1; y <= maxYear; y++) {
         for (let s = 1; s <= 2; s++) {
           const existing = apiPlans.find(p => p.year === y && p.semester === s);
           if (existing) {
@@ -86,6 +90,10 @@ export default function AdminCurriculum() {
         }
       }
       setLocalPlans(fullPlans);
+      // เซ็ต curriculum year ถ้ายังไม่ได้เลือก
+      if (!selectedCurriculumYear && curriculumResponse.data.currentCurriculumYear) {
+        setSelectedCurriculumYear(curriculumResponse.data.currentCurriculumYear);
+      }
     }
   }, [curriculumResponse]);
 
@@ -172,26 +180,44 @@ export default function AdminCurriculum() {
               แก้ไขโครงสร้างหลักสูตรและแผนการลงทะเบียน
             </p>
           </div>
-          <Button
-            onClick={() => {
-              if (isEditing) {
-                handleSave();
-              } else {
-                setIsEditing(true);
-              }
-            }}
-            className="flex items-center gap-2"
-            variant={isEditing ? "outline" : "default"}
-          >
-            {isEditing ? <><Save size={16} /> บันทึกการเปลี่ยนแปลง</> : <><Edit2 size={16} /> แก้ไขหลักสูตร</>}
-          </Button>
+          <div className="flex items-center gap-3">
+            {/* เลือกหลักสูตร */}
+            {curriculumResponse?.data?.availableCurricula && (
+              <select
+                className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                value={selectedCurriculumYear || ''}
+                onChange={(e) => {
+                  setSelectedCurriculumYear(Number(e.target.value));
+                }}
+              >
+                {curriculumResponse.data.availableCurricula.map((c: any) => (
+                  <option key={c.id} value={c.year}>
+                    หลักสูตร {c.year % 100} ({c.name})
+                  </option>
+                ))}
+              </select>
+            )}
+            <Button
+              onClick={() => {
+                if (isEditing) {
+                  handleSave();
+                } else {
+                  setIsEditing(true);
+                }
+              }}
+              className="flex items-center gap-2"
+              variant={isEditing ? "outline" : "default"}
+            >
+              {isEditing ? <><Save size={16} /> บันทึกการเปลี่ยนแปลง</> : <><Edit2 size={16} /> แก้ไขหลักสูตร</>}
+            </Button>
+          </div>
         </div>
 
         {/* Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <Card className="p-4 border border-slate-200">
             <p className="text-xs text-slate-600">หลักสูตร</p>
-            <p className="text-lg font-bold text-slate-900">วิศวกรรมคอมพิวเตอร์</p>
+            <p className="text-lg font-bold text-slate-900">{curriculumResponse?.data?.curriculumName || 'วิศวกรรมคอมพิวเตอร์'}</p>
           </Card>
           <Card className="p-4 border border-slate-200">
             <p className="text-xs text-slate-600">ระยะเวลา</p>
@@ -212,7 +238,7 @@ export default function AdminCurriculum() {
         {/* Year Selector */}
         <Card className="p-4 border border-slate-200">
           <div className="flex flex-wrap gap-3">
-            {[1, 2, 3, 4].map((year) => (
+            {[1, 2, 3, 4, 5].map((year) => (
               <button
                 key={year}
                 onClick={() => setSelectedYear(year)}
