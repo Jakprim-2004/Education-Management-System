@@ -46,7 +46,10 @@ export default function AdminImportData() {
         method: 'POST',
         body: formData,
       });
-      if (!res.ok) throw new Error('Failed to upload file');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.message || 'Failed to upload file');
+      }
       return res.json();
     },
     onSuccess: () => {
