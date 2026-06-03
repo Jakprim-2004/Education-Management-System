@@ -326,39 +326,87 @@ export async function POST(request: NextRequest) {
       parsedImportType = ImportType.enrollments;
       
       const defaultCurriculum = await prisma.curriculum.findFirst();
-      if (!defaultCurriculum) return NextResponse.json({ message: "ไม่พบหลักสูตรตั้งต้นในระบบ" }, { status: 400 });
 
       for (const row of dataRows) {
         if (row.length < 6) continue;
-        let courseCode, yearLvl, semLvl, dayOfWeekTxt, startTimeTxt, endTimeTxt, roomTxt;
+        let courseCode, courseName, creditsTxt, typeTxt, yearLvl, semLvl, dayOfWeekTxt, startTimeTxt, endTimeTxt, roomTxt, currYearTxt;
         if (importType === "curriculum") {
           courseCode = row[0];
-          yearLvl = row[3];
-          semLvl = row[4];
-          dayOfWeekTxt = row[6];
-          startTimeTxt = row[7];
-          endTimeTxt = row[8];
-          roomTxt = row[9];
+          courseName = row[1];
+          creditsTxt = row[2];
+          currYearTxt = row[3];
+          yearLvl = row[4];
+          semLvl = row[5];
+          typeTxt = row[6];
+          dayOfWeekTxt = row[7];
+          startTimeTxt = row[8];
+          endTimeTxt = row[9];
+          roomTxt = row[10];
         } else {
           yearLvl = row[0];
           semLvl = row[1];
           courseCode = row[2];
+          courseName = row[3];
+          creditsTxt = row[4];
+          typeTxt = row[5];
         }
 
         try {
-          const course = await prisma.course.findUnique({ where: { code: courseCode } });
+          let course = await prisma.course.findUnique({ where: { code: courseCode } });
           if (!course) {
-            errorCount++;
-            continue;
+            const defaultDept = await prisma.department.findFirst();
+            if (!defaultDept) { errorCount++; continue; }
+            
+            let mappedType = "required";
+            if (typeTxt && typeTxt.includes("เลือก")) mappedType = "elective";
+            else if (typeTxt && typeTxt.includes("ทั่วไป")) mappedType = "general";
+
+            course = await prisma.course.create({
+              data: {
+                code: courseCode,
+                name: courseName || courseCode,
+                credits: parseInt(creditsTxt) || 3,
+                type: mappedType as any,
+                departmentId: defaultDept.id
+              }
+            });
           }
           
+          let targetCurriculum = defaultCurriculum;
+          if (currYearTxt) {
+            const parsedYear = parseInt(currYearTxt);
+            if (!isNaN(parsedYear)) {
+              let curr = await prisma.curriculum.findFirst({ where: { year: parsedYear } });
+              if (!curr) {
+                const defaultDept = await prisma.department.findFirst();
+                if (defaultDept) {
+                  curr = await prisma.curriculum.create({
+                    data: {
+                      year: parsedYear,
+                      name: `หลักสูตรปรับปรุง พ.ศ. ${parsedYear}`,
+                      totalCredits: 120,
+                      departmentId: defaultDept.id,
+                      status: "active"
+                    }
+                  });
+                }
+              }
+              if (curr) targetCurriculum = curr;
+            }
+          }
+
+          if (!targetCurriculum) {
+             errorCount++;
+             continue; // fallback failed
+          }
+
           await prisma.curriculumCourse.upsert({
             where: {
-              curriculumId_courseId: { curriculumId: defaultCurriculum.id, courseId: course.id }
+              curriculumId_courseId: { curriculumId: targetCurriculum.id, courseId: course.id }
             },
             update: { yearLevel: parseInt(yearLvl) || 1, semester: parseInt(semLvl) || 1 },
             create: {
-              curriculumId: defaultCurriculum.id,
+              curriculumId: targetCurriculum.id,
               courseId: course.id,
               yearLevel: parseInt(yearLvl) || 1,
               semester: parseInt(semLvl) || 1
