@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, BookOpen, Clock, MessageSquare, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 interface TeacherCourse {
   id: string;
@@ -20,10 +21,14 @@ interface TeacherCourse {
 }
 
 export default function TeacherCourses() {
+  const [selectedCurriculumYear, setSelectedCurriculumYear] = useState<number | null>(null);
   const { data: coursesResponse, isLoading, isError, error } = useQuery({
-    queryKey: ['teacherCourses'],
+    queryKey: ['teacherCourses', selectedCurriculumYear],
     queryFn: async () => {
-      const res = await fetch('/api/courses/teacher');
+      const url = selectedCurriculumYear
+        ? `/api/courses/teacher?curriculumYear=${selectedCurriculumYear}`
+        : '/api/courses/teacher';
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch courses data');
       return res.json();
     }
@@ -51,6 +56,7 @@ export default function TeacherCourses() {
   }
 
   const courses: TeacherCourse[] = coursesResponse?.data || [];
+  const availableCurriculumYears: number[] = coursesResponse?.meta?.availableCurriculumYears || [];
 
   const activeCourses = courses.filter((c) => c.status === "active");
   const completedCourses = courses.filter((c) => c.status === "completed");
@@ -60,9 +66,28 @@ export default function TeacherCourses() {
     <Layout role="teacher">
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">วิชาของฉัน</h1>
-          <p className="text-slate-600 mt-1">จัดการวิชาและชั้นเรียนทั้งหมด</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">วิชาของฉัน</h1>
+            <p className="text-slate-600 mt-1">จัดการวิชาและชั้นเรียนทั้งหมด</p>
+          </div>
+          {availableCurriculumYears.length > 0 && (
+            <select
+              className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+              value={selectedCurriculumYear ?? ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSelectedCurriculumYear(value ? Number(value) : null);
+              }}
+            >
+              <option value="">หลักสูตรทั้งหมด</option>
+              {availableCurriculumYears.map((year) => (
+                <option key={year} value={year}>
+                  หลักสูตร {year % 100}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Summary Cards */}

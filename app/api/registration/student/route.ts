@@ -114,7 +114,8 @@ export async function GET(request: NextRequest) {
       firstName: (student as any).user?.firstName,
       lastName: (student as any).user?.lastName,
       departmentName: (student as any).department?.name || "",
-      advisorName: (student as any).advisor?.user ? `${(student as any).advisor.user.firstName} ${(student as any).advisor.user.lastName}` : ""
+      advisorName: (student as any).advisor?.user ? `${(student as any).advisor.user.firstName} ${(student as any).advisor.user.lastName}` : "",
+      admissionYear: (student as any).admissionYear
     };
 
     // Format course plans
@@ -126,6 +127,7 @@ export async function GET(request: NextRequest) {
         code: plan.course.code,
         name: plan.course.name,
         credits: plan.course.credits,
+        isCompulsory: plan.course.type === 'required',
         availableSections: plan.course.courseSections.map((sec: any) => ({
           sectionId: sec.id,
           sectionNumber: sec.sectionNumber,
@@ -148,65 +150,66 @@ export async function GET(request: NextRequest) {
     }
 
     let curriculumCoursesToAdd: any[] = [];
-    if (activeSemester && student.admissionYear) {
-      const currentYearLevel = activeSemester.academicYear - student.admissionYear + 1;
-      
-      if (currentYearLevel > 0 && currentYearLevel <= 8) {
-        const studentCurriculum = await prisma.curriculum.findFirst({
-          where: {
-            departmentId: student.departmentId,
-            year: { lte: student.admissionYear }
-          },
-          orderBy: { year: 'desc' }
-        });
+    if (student.admissionYear) {
+      const studentCurriculum = await prisma.curriculum.findFirst({
+        where: {
+          departmentId: student.departmentId,
+          year: { lte: student.admissionYear }
+        },
+        orderBy: { year: 'desc' }
+      });
 
-        if (studentCurriculum) {
-          const requiredCourses = await prisma.curriculumCourse.findMany({
-            where: {
-              curriculumId: studentCurriculum.id,
-              yearLevel: currentYearLevel,
-              semester: activeSemester.semesterNumber
-            },
-            include: {
-              course: {
-                include: {
-                  courseSections: {
-                    where: { semesterId: activeSemester.id },
-                    include: { teacher: true, schedules: true }
-                  }
+      if (studentCurriculum) {
+        const requiredCourses = await prisma.curriculumCourse.findMany({
+          where: {
+            curriculumId: studentCurriculum.id,
+            yearLevel: { lte: 4, gte: 1 } // Pull Year 1 to 4
+          },
+          include: {
+            course: {
+              include: {
+                courseSections: {
+                  include: { teacher: true, schedules: true, semester: true }
                 }
               }
             }
-          });
+          }
+        });
 
-          const existingPlanCourseIds = new Set((student as any).coursePlans.map((p: any) => p.courseId));
-          const enrolledCourseIds = new Set((student as any).enrollments
-            .filter((e: any) => e.status !== "dropped" && e.status !== "withdrawn")
-            .map((e: any) => e.section.courseId));
+        const existingPlanCourseIds = new Set((student as any).coursePlans.map((p: any) => p.courseId));
+        const enrolledCourseIds = new Set((student as any).enrollments
+          .filter((e: any) => e.status !== "dropped" && e.status !== "withdrawn")
+          .map((e: any) => e.section.courseId));
 
-          for (const req of requiredCourses) {
-            if (!existingPlanCourseIds.has(req.courseId) && !enrolledCourseIds.has(req.courseId)) {
-              curriculumCoursesToAdd.push({
-                id: `curr-${req.id}`,
-                semester: `${activeSemester.semesterNumber}/${activeSemester.academicYear}`,
-                courseId: req.course.id,
-                code: req.course.code,
-                name: req.course.name,
-                credits: req.course.credits,
-                availableSections: req.course.courseSections.map((sec: any) => ({
-                  sectionId: sec.id,
-                  sectionNumber: sec.sectionNumber,
-                  teacherName: sec.teacher?.name || "ไม่ระบุ",
-                  currentStudents: sec.currentStudents || 0,
-                  maxStudents: sec.maxStudents || 50,
-                  schedules: sec.schedules.map((sch: any) => ({
-                    day: sch.dayOfWeek,
-                    time: `${new Date(sch.startTime).toISOString().slice(11, 16)} - ${new Date(sch.endTime).toISOString().slice(11, 16)}`,
-                    room: sch.room || "TBA"
-                  }))
+        for (const req of requiredCourses) {
+          if (!existingPlanCourseIds.has(req.courseId) && !enrolledCourseIds.has(req.courseId)) {
+            const courseAcademicYear = student.admissionYear + (req.yearLevel || 1) - 1;
+            const courseSemesterNumber = req.semester || 1;
+            const pseudoSemester = `${courseSemesterNumber}/${courseAcademicYear}`;
+
+            curriculumCoursesToAdd.push({
+              id: `curr-${req.id}`,
+              semester: pseudoSemester,
+              courseId: req.course.id,
+              code: req.course.code,
+              name: req.course.name,
+              credits: req.course.credits,
+              isCompulsory: req.course.type === 'required',
+              availableSections: req.course.courseSections
+                .filter((sec: any) => sec.semester?.academicYear === courseAcademicYear && sec.semester?.semesterNumber === courseSemesterNumber)
+                .map((sec: any) => ({
+                sectionId: sec.id,
+                sectionNumber: sec.sectionNumber,
+                teacherName: sec.teacher?.name || "ไม่ระบุ",
+                currentStudents: sec.currentStudents || 0,
+                maxStudents: sec.maxStudents || 50,
+                schedules: sec.schedules.map((sch: any) => ({
+                  day: sch.dayOfWeek,
+                  time: `${new Date(sch.startTime).toISOString().slice(11, 16)} - ${new Date(sch.endTime).toISOString().slice(11, 16)}`,
+                  room: sch.room || "TBA"
                 }))
-              });
-            }
+              }))
+            });
           }
         }
       }

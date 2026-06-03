@@ -76,7 +76,14 @@ export default function StudentRegistration() {
   const allRegistrations: RegistrationItem[] = regData?.data?.registrations || [];
   const registrationSemesters = allRegistrations.map((r) => r.semester).filter(Boolean) as string[];
   const plannedCourseSemesters = allPlannedCourses.map((c: any) => c.semester) as string[];
-  const allSemesters = [...new Set([...plannedCourseSemesters, ...registrationSemesters])].sort() as string[];
+  const allSemesters = [...new Set([...plannedCourseSemesters, ...registrationSemesters])]
+    .filter(Boolean)
+    .sort((a: any, b: any) => {
+      const [termA, yearA] = a.split('/');
+      const [termB, yearB] = b.split('/');
+      if (yearA !== yearB) return parseInt(yearA) - parseInt(yearB);
+      return parseInt(termA) - parseInt(termB);
+    }) as string[];
 
   useEffect(() => {
     if (!selectedSemester && allSemesters.length > 0) {
@@ -183,9 +190,20 @@ export default function StudentRegistration() {
             onChange={(e) => setSelectedSemester(e.target.value)}
             className="text-sm p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-primary bg-white font-medium"
           >
-            {allSemesters.map((sem) => (
-              <option key={sem} value={sem}>ภาค {sem}</option>
-            ))}
+            {allSemesters.map((sem) => {
+              const [term, yearStr] = sem.split('/');
+              const year = parseInt(yearStr);
+              let label = `ภาคเรียน ${sem}`;
+              if (studentInfo.admissionYear && !isNaN(year)) {
+                 const yearLevel = year - studentInfo.admissionYear + 1;
+                 if (yearLevel > 0) {
+                    label = `ชั้นปีที่ ${yearLevel} เทอม ${term} (ปีการศึกษา ${year})`;
+                 }
+              }
+              return (
+                <option key={sem} value={sem}>{label}</option>
+              );
+            })}
           </select>
         </div>
 
@@ -273,6 +291,9 @@ export default function StudentRegistration() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <code className="text-sm font-mono font-bold text-primary">{course.code}</code>
+                        {course.isCompulsory && (
+                          <span className="text-xs px-2 py-1 rounded font-medium bg-red-100 text-red-700">วิชาบังคับ</span>
+                        )}
                         <span className="text-xs px-2 py-1 rounded font-medium bg-slate-100 text-slate-700">แผนเทอม {course.semester}</span>
                       </div>
                       <h3 className="font-medium text-slate-900">{course.name}</h3>

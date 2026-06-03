@@ -20,6 +20,11 @@ export async function GET(request: NextRequest) {
     // Get optional semester filter from query params
     const { searchParams } = new URL(request.url);
     const semesterIdParam = searchParams.get("semesterId");
+    const curriculumYearParam = searchParams.get("curriculumYear");
+    const rawYear = curriculumYearParam ? parseInt(curriculumYearParam) : NaN;
+    const selectedCurriculumYear = Number.isFinite(rawYear)
+      ? (rawYear < 100 ? 2500 + rawYear : rawYear)
+      : null;
 
     // 1. Get Teacher Information & their courses
     const teacher = await prisma.teacher.findUnique({
@@ -36,6 +41,21 @@ export async function GET(request: NextRequest) {
               select: { enrollments: true }
             }
           }
+        },
+        coordinatedCourses: {
+          include: {
+            courseSections: {
+              include: {
+                semester: true,
+                enrollments: {
+                  select: { grade: true }
+                },
+                _count: {
+                  select: { enrollments: true }
+                }
+              }
+            }
+          }
         }
       }
     });
@@ -44,9 +64,47 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Teacher profile not found" }, { status: 404 });
     }
 
+    const combinedSections: any[] = [...(teacher as any).courseSections];
+    for (const course of (teacher as any).coordinatedCourses || []) {
+      for (const section of course.courseSections || []) {
+        combinedSections.push({
+          ...section,
+          course
+        });
+      }
+    }
+
+    const courseIds = new Set<number>();
+    combinedSections.forEach((section: any) => courseIds.add(section.course.id));
+    ((teacher as any).coordinatedCourses || []).forEach((course: any) => courseIds.add(course.id));
+
+    const curriculumLinks = await prisma.curriculumCourse.findMany({
+      where: { courseId: { in: Array.from(courseIds) } },
+      include: { curriculum: true }
+    });
+
+    const courseYearMap = new Map<number, Set<number>>();
+    for (const link of curriculumLinks) {
+      const set = courseYearMap.get(link.courseId) || new Set<number>();
+      set.add(link.curriculum.year);
+      courseYearMap.set(link.courseId, set);
+    }
+
+    const availableCurriculumYears = Array.from(
+      new Set(curriculumLinks.map(link => link.curriculum.year))
+    ).sort((a, b) => b - a);
+
+    const uniqueSections: any[] = [];
+    const sectionIdSet = new Set<number>();
+    for (const section of combinedSections) {
+      if (sectionIdSet.has(section.id)) continue;
+      sectionIdSet.add(section.id);
+      uniqueSections.push(section);
+    }
+
     // 2. Build semester list from teacher's sections
     const semesterMap = new Map<number, { id: number; name: string; isCurrent: boolean }>();
-    (teacher as any).courseSections.forEach((section: any) => {
+    uniqueSections.forEach((section: any) => {
       if (!semesterMap.has(section.semester.id)) {
         semesterMap.set(section.semester.id, {
           id: section.semester.id,
@@ -80,9 +138,16 @@ export async function GET(request: NextRequest) {
     });
 
     // 4. Filter courses by selected semester & compute stats
-    const filteredSections = selectedSemesterId
-      ? (teacher as any).courseSections.filter((s: any) => s.semester.id === selectedSemesterId)
-      : (teacher as any).courseSections;
+    const filteredBySemester = selectedSemesterId
+      ? uniqueSections.filter((s: any) => s.semester.id === selectedSemesterId)
+      : uniqueSections;
+
+    const filteredSections = selectedCurriculumYear
+      ? filteredBySemester.filter((s: any) => {
+          const years = courseYearMap.get(s.course.id);
+          return years ? years.has(selectedCurriculumYear) : false;
+        })
+      : filteredBySemester;
 
     let totalStudents = 0;
     let totalGradePoints = 0;
@@ -112,6 +177,24 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    const coordinatorOnlyCourses = (teacher as any).coordinatedCourses?.filter(
+      (course: any) => (course.courseSections || []).length === 0
+    ) || [];
+
+    for (const course of coordinatorOnlyCourses) {
+      if (selectedCurriculumYear) {
+        const years = courseYearMap.get(course.id);
+        if (!years || !years.has(selectedCurriculumYear)) continue;
+      }
+      myCourses.push({
+        code: course.code,
+        name: course.name,
+        students: 0,
+        semester: "-",
+        status: "Active"
+      });
+    }
+
     // Sort active first
     myCourses.sort((a, b) => (a.status === "Active" ? -1 : 1));
 
@@ -130,7 +213,7 @@ export async function GET(request: NextRequest) {
     }
 
     const stats = [
-      { id: "my-courses", label: "วิชาของฉัน", value: filteredSections.length.toString(), color: "bg-blue-100 text-blue-600" },
+      { id: "my-courses", label: "วิชาของฉัน", value: myCourses.length.toString(), color: "bg-blue-100 text-blue-600" },
       { id: "total-students", label: "จำนวนนิสิตทั้งหมด", value: totalStudents.toString(), color: "bg-green-100 text-green-600" },
       { id: "avg-grade", label: "เกรดเฉลี่ยนิสิต", value: avgGradeLabel, color: "bg-purple-100 text-purple-600" },
     ];
@@ -147,6 +230,8 @@ export async function GET(request: NextRequest) {
       data: {
         semesters,
         selectedSemesterId,
+        selectedCurriculumYear,
+        availableCurriculumYears,
         stats,
         myCourses,
         announcements

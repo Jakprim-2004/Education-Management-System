@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
@@ -30,6 +30,16 @@ export default function Layout({ children, role }: LayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [userData, setUserData] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.user) setUserData(data);
+      })
+      .catch(console.error);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -137,14 +147,20 @@ export default function Layout({ children, role }: LayoutProps) {
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm font-medium text-slate-900">
-                {role === "student" ? "นิสิต" : role === "teacher" ? "อาจารย์" : "ผู้ดูแลระบบ"}
+                {userData?.user ? `${userData.user.firstName} ${userData.user.lastName}` : (role === "student" ? "นิสิต" : role === "teacher" ? "อาจารย์" : "ผู้ดูแลระบบ")}
               </p>
               <p className="text-xs text-slate-500">
-                {role === "student" ? "รหัส 6321651575" : role === "teacher" ? "รหัส T001" : "ระบบ"}
+                {role === "student" ? `รหัส ${userData?.profile?.studentCode || "..."}` : 
+                 role === "teacher" ? `รหัส ${userData?.profile?.teacherCode || "..."}` : 
+                 "ระบบ"}
               </p>
             </div>
-            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold">
-              {role.charAt(0).toUpperCase()}
+            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold overflow-hidden">
+              {userData?.user?.avatarUrl ? (
+                <img src={userData.user.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                userData?.user?.firstName ? userData.user.firstName[0].toUpperCase() : role.charAt(0).toUpperCase()
+              )}
             </div>
           </div>
         </header>

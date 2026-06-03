@@ -23,6 +23,9 @@ export async function GET(request: NextRequest) {
         id: true,
         email: true,
         role: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
       }
     });
 

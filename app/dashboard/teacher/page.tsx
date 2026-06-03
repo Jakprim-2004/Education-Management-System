@@ -18,6 +18,8 @@ interface SemesterOption {
 interface DashboardData {
   semesters: SemesterOption[];
   selectedSemesterId: number | null;
+  selectedCurriculumYear?: number | null;
+  availableCurriculumYears?: number[];
   stats: {
     id: string;
     label: string;
@@ -41,13 +43,16 @@ interface DashboardData {
 
 export default function TeacherDashboard() {
   const [selectedSemesterId, setSelectedSemesterId] = useState<number | null>(null);
+  const [selectedCurriculumYear, setSelectedCurriculumYear] = useState<number | null>(null);
 
   const { data: dashboardResponse, isLoading, isError, error } = useQuery({
-    queryKey: ['teacherDashboard', selectedSemesterId],
+    queryKey: ['teacherDashboard', selectedSemesterId, selectedCurriculumYear],
     queryFn: async () => {
-      const url = selectedSemesterId
-        ? `/api/dashboard/teacher?semesterId=${selectedSemesterId}`
-        : `/api/dashboard/teacher`;
+      const params = new URLSearchParams();
+      if (selectedSemesterId) params.set("semesterId", String(selectedSemesterId));
+      if (selectedCurriculumYear) params.set("curriculumYear", String(selectedCurriculumYear));
+      const query = params.toString();
+      const url = query ? `/api/dashboard/teacher?${query}` : `/api/dashboard/teacher`;
       const res = await fetch(url);
       if (!res.ok) {
         throw new Error('Failed to fetch dashboard data');
@@ -78,6 +83,7 @@ export default function TeacherDashboard() {
   }
 
   const data: DashboardData = dashboardResponse?.data;
+  const availableCurriculumYears: number[] = data?.availableCurriculumYears || [];
 
   const getIcon = (id: string) => {
     switch (id) {
@@ -123,6 +129,29 @@ export default function TeacherDashboard() {
                   )}
                 </button>
               ))}
+            </div>
+          </Card>
+        )}
+
+        {availableCurriculumYears.length > 0 && (
+          <Card className="p-4 border border-slate-200">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-slate-700 mr-1">หลักสูตร:</span>
+              <select
+                className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                value={selectedCurriculumYear ?? ""}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSelectedCurriculumYear(value ? Number(value) : null);
+                }}
+              >
+                <option value="">ทั้งหมด</option>
+                {availableCurriculumYears.map((year) => (
+                  <option key={year} value={year}>
+                    หลักสูตร {year % 100}
+                  </option>
+                ))}
+              </select>
             </div>
           </Card>
         )}

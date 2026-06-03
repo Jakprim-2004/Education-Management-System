@@ -244,11 +244,11 @@ export async function POST(request: NextRequest) {
 
       for (const row of dataRows) {
         if (row.length < 6) continue;
-        const [code, nameTh, nameEn, creditsTxt, typeTxt, facultyTxt, dayOfWeekTxt, startTimeTxt, endTimeTxt, roomTxt] = row;
+        const [code, nameTh, nameEn, creditsTxt, typeTxt, facultyTxt, dayOfWeekTxt, startTimeTxt, endTimeTxt, roomTxt, teacherCodeTxt] = row;
         try {
           let mappedType = "required";
-          if (typeTxt.includes("เลือก")) mappedType = "elective";
-          else if (typeTxt.includes("ทั่วไป")) mappedType = "general";
+          if (typeTxt && typeTxt.includes("เลือก")) mappedType = "elective";
+          else if (typeTxt && typeTxt.includes("ทั่วไป")) mappedType = "general";
           
           const fullName = nameEn && nameEn.trim() !== "-" && nameEn.trim() !== "" ? `${nameTh} (${nameEn})` : nameTh;
 
@@ -275,7 +275,13 @@ export async function POST(request: NextRequest) {
              if (!activeSemester) activeSemester = await prisma.semester.findFirst();
 
              if (activeSemester) {
-                 const teacher = await prisma.teacher.findFirst();
+                 let targetTeacherId: number | undefined;
+                 if (teacherCodeTxt) {
+                   const t = await prisma.teacher.findUnique({ where: { teacherCode: teacherCodeTxt }});
+                   if (t) targetTeacherId = t.id;
+                 }
+
+                 const teacher = targetTeacherId ? await prisma.teacher.findUnique({ where: { id: targetTeacherId } }) : await prisma.teacher.findFirst();
                  if (teacher) {
                      let section = await prisma.courseSection.findFirst({ where: { courseId: course.id, semesterId: activeSemester.id, sectionNumber: "1" }});
                      if (!section) {
@@ -329,7 +335,7 @@ export async function POST(request: NextRequest) {
 
       for (const row of dataRows) {
         if (row.length < 6) continue;
-        let courseCode, courseName, creditsTxt, typeTxt, yearLvl, semLvl, dayOfWeekTxt, startTimeTxt, endTimeTxt, roomTxt, currYearTxt;
+        let courseCode, courseName, creditsTxt, typeTxt, yearLvl, semLvl, dayOfWeekTxt, startTimeTxt, endTimeTxt, roomTxt, currYearTxt, teacherCodeTxt;
         if (importType === "curriculum") {
           courseCode = row[0];
           courseName = row[1];
@@ -342,6 +348,7 @@ export async function POST(request: NextRequest) {
           startTimeTxt = row[8];
           endTimeTxt = row[9];
           roomTxt = row[10];
+          teacherCodeTxt = row[11];
         } else {
           yearLvl = row[0];
           semLvl = row[1];
@@ -419,7 +426,13 @@ export async function POST(request: NextRequest) {
              if (!activeSemester) activeSemester = await prisma.semester.findFirst();
 
              if (activeSemester) {
-                 const teacher = await prisma.teacher.findFirst();
+                 let targetTeacherId: number | undefined;
+                 if (teacherCodeTxt) {
+                   const t = await prisma.teacher.findUnique({ where: { teacherCode: teacherCodeTxt }});
+                   if (t) targetTeacherId = t.id;
+                 }
+
+                 const teacher = targetTeacherId ? await prisma.teacher.findUnique({ where: { id: targetTeacherId } }) : await prisma.teacher.findFirst();
                  if (teacher) {
                      let section = await prisma.courseSection.findFirst({ where: { courseId: course.id, semesterId: activeSemester.id, sectionNumber: "1" }});
                      if (!section) {

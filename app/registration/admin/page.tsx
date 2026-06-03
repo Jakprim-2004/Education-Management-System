@@ -397,30 +397,70 @@ export default function AdminRegistration() {
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-slate-900">
-                  รายวิชาที่ขอลงทะเบียน ({modalStudent.courses.length} วิชา, {modalStudent.totalCredits} หน่วยกิต)
+                  รายวิชาที่ขอลงทะเบียน (รวมทั้งหมด {modalStudent.courses.length} วิชา, {modalStudent.totalCredits} หน่วยกิต)
                 </h3>
               </div>
 
-              <div className="space-y-3">
-                {modalStudent.courses.map((course) => (
-                  <div
-                    key={course.id}
-                    className="p-4 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <code className="text-sm font-mono font-bold text-primary">{course.courseCode}</code>
-                          <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">
-                            ภาค {course.semester}
-                          </span>
+              <div className="space-y-6">
+                {Object.entries(
+                  modalStudent.courses.reduce((acc, course) => {
+                    if (!acc[course.semester]) acc[course.semester] = [];
+                    acc[course.semester].push(course);
+                    return acc;
+                  }, {} as Record<string, RegistrationRequest[]>)
+                )
+                .sort(([semA], [semB]) => semB.localeCompare(semA))
+                .map(([semester, courses]) => (
+                  <div key={semester} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50 border-b border-slate-200 gap-3">
+                      <div className="font-semibold text-slate-800">
+                        ภาคเรียน {semester} <span className="text-sm font-normal text-slate-600">({courses.length} วิชา, {courses.reduce((sum, c) => sum + c.credits, 0)} หน่วยกิต)</span>
+                      </div>
+                      {statusFilter === "pending" && (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                            onClick={() => handleAction("reject", courses.map(c => c.id))}
+                            disabled={actionMutation.isPending}
+                          >
+                            <XCircle size={14} className="mr-1" />
+                            ปฏิเสธภาคนี้
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs border-green-200 text-green-600 hover:bg-green-50 hover:text-green-700"
+                            onClick={() => handleAction("approve", courses.map(c => c.id))}
+                            disabled={actionMutation.isPending}
+                          >
+                            <CheckCircle size={14} className="mr-1" />
+                            อนุมัติภาคนี้
+                          </Button>
                         </div>
-                        <p className="text-sm text-slate-800">{course.courseName}</p>
-                        <p className="text-xs text-slate-400 mt-1">ยื่นเมื่อ {course.enrolledAt}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-bold text-primary">{course.credits} หน่วยกิต</p>
-                      </div>
+                      )}
+                    </div>
+                    <div className="p-3 space-y-2">
+                      {courses.map((course) => (
+                        <div
+                          key={course.id}
+                          className="p-3 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <code className="text-sm font-mono font-bold text-primary">{course.courseCode}</code>
+                              </div>
+                              <p className="text-sm text-slate-800">{course.courseName}</p>
+                              <p className="text-xs text-slate-400 mt-1">ยื่นเมื่อ {course.enrolledAt}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="font-bold text-primary">{course.credits} หน่วยกิต</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}

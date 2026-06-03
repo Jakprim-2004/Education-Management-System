@@ -17,6 +17,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const curriculumYearParam = searchParams.get("curriculumYear");
+    const rawYear = curriculumYearParam ? parseInt(curriculumYearParam) : NaN;
+    const selectedCurriculumYear = Number.isFinite(rawYear)
+      ? (rawYear < 100 ? 2500 + rawYear : rawYear)
+      : null;
+
     const teacher = await prisma.teacher.findUnique({
       where: { userId: payload.userId },
       include: {
@@ -29,6 +36,19 @@ export async function GET(request: NextRequest) {
               select: { enrollments: true }
             }
           }
+        },
+        coordinatedCourses: {
+          include: {
+            courseSections: {
+              include: {
+                semester: true,
+                schedules: true,
+                _count: {
+                  select: { enrollments: true }
+                }
+              }
+            }
+          }
         }
       }
     });
@@ -37,8 +57,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Teacher not found" }, { status: 404 });
     }
 
-    // Format for frontend
-    const courses = (teacher as any).courseSections.map((section: any) => {
+    const courseIds = new Set<number>();
+    (teacher as any).courseSections.forEach((section: any) => courseIds.add(section.course.id));
+    ((teacher as any).coordinatedCourses || []).forEach((course: any) => courseIds.add(course.id));
+
+    const curriculumLinks = await prisma.curriculumCourse.findMany({
+      where: { courseId: { in: Array.from(courseIds) } },
+      include: { curriculum: true }
+    });
+
+    const courseYearMap = new Map<number, Set<number>>();
+    for (const link of curriculumLinks) {
+      const set = courseYearMap.get(link.courseId) || new Set<number>();
+      set.add(link.curriculum.year);
+      courseYearMap.set(link.courseId, set);
+    }
+
+    const availableCurriculumYears = Array.from(
+      new Set(curriculumLinks.map(link => link.curriculum.year))
+    ).sort((a, b) => b - a);
+
+    const formatCourseEntry = (section: any, course: any) => {
       // Mock class count / announcement count since they don't exist in Prisma
       let classes = 15; 
       let announcements = Math.floor(Math.random() * 5);
@@ -69,8 +108,9 @@ export async function GET(request: NextRequest) {
 
       return {
         id: section.id.toString(),
-        code: section.course.code,
-        name: section.course.name,
+        courseId: course.id,
+        code: course.code,
+        name: course.name,
         semester: `${section.semester.academicYear}/${section.semester.semesterNumber}`,
         students: section._count.enrollments,
         classes,
@@ -78,17 +118,59 @@ export async function GET(request: NextRequest) {
         schedule: scheduleStr,
         status: section.semester.isCurrent ? "active" : "completed",
       };
+    };
+
+    // Format for frontend (sections assigned to teacher)
+    const courses = (teacher as any).courseSections.map((section: any) => {
+      return formatCourseEntry(section, section.course);
     });
 
+    const courseIdSet = new Set((teacher as any).courseSections.map((section: any) => section.course.id));
+
+    // Also include courses where teacher is coordinator
+    for (const course of (teacher as any).coordinatedCourses || []) {
+      if (courseIdSet.has(course.id)) continue;
+
+      const firstSection = course.courseSections?.[0];
+      if (firstSection) {
+        courses.push(formatCourseEntry(firstSection, course));
+        continue;
+      }
+
+      courses.push({
+        id: `coord-${course.id}`,
+        courseId: course.id,
+        code: course.code,
+        name: course.name,
+        semester: "-",
+        students: 0,
+        classes: 0,
+        announcements: 0,
+        schedule: "ไม่ได้กำหนด",
+        status: "active",
+      });
+    }
+
+    const filteredCourses = selectedCurriculumYear
+      ? courses.filter((course: any) => {
+          const years = courseYearMap.get(course.courseId);
+          return years ? years.has(selectedCurriculumYear) : false;
+        })
+      : courses;
+
     // sort to have active and newest semesters first
-    courses.sort((a, b) => {
+    filteredCourses.sort((a, b) => {
       if (a.status !== b.status) return a.status === "active" ? -1 : 1;
       return b.semester.localeCompare(a.semester);
     });
 
     return NextResponse.json({
       success: true,
-      data: courses
+      data: filteredCourses,
+      meta: {
+        availableCurriculumYears,
+        selectedCurriculumYear
+      }
     }, { status: 200 });
 
   } catch (error: any) {
