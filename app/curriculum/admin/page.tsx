@@ -34,6 +34,9 @@ export default function AdminCurriculum() {
   const [localPlans, setLocalPlans] = useState<SemesterPlan[]>([]);
 
   const [selectedCurriculumYear, setSelectedCurriculumYear] = useState<number | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newCurriculumYear, setNewCurriculumYear] = useState(new Date().getFullYear() + 543);
+  const [newCurriculumName, setNewCurriculumName] = useState("");
 
   const { data: curriculumResponse, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['adminCurriculum', selectedCurriculumYear],
@@ -156,7 +159,7 @@ export default function AdminCurriculum() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ plans: localPlans }),
+        body: JSON.stringify({ action: "save_plans", plans: localPlans, curriculumYear: selectedCurriculumYear }),
       });
       
       if (!res.ok) throw new Error('Failed to save curriculum');
@@ -166,6 +169,32 @@ export default function AdminCurriculum() {
     } catch (err: any) {
       console.error(err);
       toast({ title: "ข้อผิดพลาด", description: "เกิดข้อผิดพลาดในการบันทึกหลักสูตร", variant: "destructive" });
+    }
+  };
+
+  const handleCreateCurriculum = async () => {
+    if (!newCurriculumYear || !newCurriculumName) {
+      toast({ title: "ข้อมูลไม่ครบ", description: "กรุณากรอกปีและชื่อหลักสูตรให้ครบถ้วน", variant: "destructive" });
+      return;
+    }
+    try {
+      const res = await fetch('/api/curriculum/admin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: "create", year: newCurriculumYear, name: newCurriculumName }),
+      });
+      if (!res.ok) {
+         const data = await res.json().catch(()=>null);
+         throw new Error(data?.message || 'Failed to create curriculum');
+      }
+      toast({ title: "สำเร็จ", description: "สร้างหลักสูตรใหม่เรียบร้อยแล้ว" });
+      setShowCreateModal(false);
+      setSelectedCurriculumYear(newCurriculumYear);
+      refetch();
+    } catch (err: any) {
+      toast({ title: "ข้อผิดพลาด", description: err.message, variant: "destructive" });
     }
   };
 
@@ -197,6 +226,9 @@ export default function AdminCurriculum() {
                 ))}
               </select>
             )}
+            <Button variant="outline" onClick={() => setShowCreateModal(true)} className="flex items-center gap-2">
+              <Plus size={16} /> เพิ่มหลักสูตร
+            </Button>
             <Button
               onClick={() => {
                 if (isEditing) {
@@ -377,6 +409,44 @@ export default function AdminCurriculum() {
           </Card>
         ))}
       </div>
+
+      {/* Create Curriculum Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl border border-slate-200">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-900">เพิ่มหลักสูตรใหม่</h2>
+              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">ปีหลักสูตร (พ.ศ.)</label>
+                <Input 
+                  type="number" 
+                  value={newCurriculumYear} 
+                  onChange={(e) => setNewCurriculumYear(parseInt(e.target.value))} 
+                  placeholder="เช่น 2565" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">ชื่อหลักสูตร</label>
+                <Input 
+                  type="text" 
+                  value={newCurriculumName} 
+                  onChange={(e) => setNewCurriculumName(e.target.value)} 
+                  placeholder="เช่น หลักสูตรปรับปรุง พ.ศ. 2565" 
+                />
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <Button variant="outline" onClick={() => setShowCreateModal(false)}>ยกเลิก</Button>
+                <Button onClick={handleCreateCurriculum}>ยืนยันการสร้าง</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

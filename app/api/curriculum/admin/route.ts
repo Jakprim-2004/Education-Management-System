@@ -160,82 +160,109 @@ export async function POST(request: NextRequest) {
     if (!payload || payload.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
     const body = await request.json();
-    const plans = body.plans || [];
+    const { action, year, name, plans, curriculumYear } = body;
 
-    // Find first active curriculum
     const firstDept = await prisma.department.findFirst();
     if (!firstDept) {
       return NextResponse.json({ message: "No department found" }, { status: 400 });
     }
 
-    let curriculum = await prisma.curriculum.findFirst({
-      where: { departmentId: firstDept.id, status: "active" }
-    });
+    if (action === "create") {
+      if (!year || !name) {
+         return NextResponse.json({ message: "Year and Name are required" }, { status: 400 });
+      }
+      
+      const existing = await prisma.curriculum.findFirst({
+         where: { departmentId: firstDept.id, year: parseInt(year) }
+      });
+      if (existing) {
+         return NextResponse.json({ message: "Curriculum for this year already exists" }, { status: 400 });
+      }
 
-    if (!curriculum) {
-      // Create one if none exists
-      curriculum = await prisma.curriculum.create({
+      await prisma.curriculum.create({
         data: {
-          name: "หลักสูตรปกติ",
-          year: new Date().getFullYear(),
+          name,
+          year: parseInt(year),
           totalCredits: 120,
           departmentId: firstDept.id,
           status: "active"
         }
       });
-    }
-
-    // Process all courses first to ensure they exist
-    for (const plan of plans) {
-       for (const course of plan.courses) {
-         let dbType: CourseType = CourseType.required;
-         if (course.type === "วิชาเลือก") dbType = CourseType.elective;
-         if (course.type === "วิชาศึกษาทั่วไป") dbType = CourseType.general;
-         
-         await prisma.course.upsert({
-           where: { code: course.code },
-           update: {
-             name: course.name,
-             credits: course.credits || 3,
-             type: dbType,
-           },
-           create: {
-             code: course.code,
-             name: course.name,
-             credits: course.credits || 3,
-             type: dbType,
-             departmentId: firstDept.id,
-             description: "ระบุอัตโนมัติจากหลักสูตร"
-           }
+      return NextResponse.json({ success: true, message: "Curriculum created successfully" });
+    } 
+    else if (action === "save_plans") {
+      let curriculum = null;
+      if (curriculumYear) {
+         curriculum = await prisma.curriculum.findFirst({
+           where: { departmentId: firstDept.id, year: parseInt(curriculumYear) }
          });
-       }
+      } else {
+         curriculum = await prisma.curriculum.findFirst({
+           where: { departmentId: firstDept.id, status: "active" },
+           orderBy: { year: "desc" }
+         });
+      }
+
+      if (!curriculum) {
+         return NextResponse.json({ message: "Curriculum not found" }, { status: 404 });
+      }
+
+      const safePlans = plans || [];
+
+      // Process all courses first to ensure they exist
+      for (const plan of safePlans) {
+         for (const course of plan.courses) {
+           let dbType: CourseType = CourseType.required;
+           if (course.type === "วิชาเลือก") dbType = CourseType.elective;
+           if (course.type === "วิชาศึกษาทั่วไป") dbType = CourseType.general;
+           
+           await prisma.course.upsert({
+             where: { code: course.code },
+             update: {
+               name: course.name,
+               credits: course.credits || 3,
+               type: dbType,
+             },
+             create: {
+               code: course.code,
+               name: course.name,
+               credits: course.credits || 3,
+               type: dbType,
+               departmentId: firstDept.id,
+               description: "ระบุอัตโนมัติจากหลักสูตร"
+             }
+           });
+         }
+      }
+
+      // Delete existing curriculum courses mapping
+      await prisma.curriculumCourse.deleteMany({
+        where: { curriculumId: curriculum.id }
+      });
+
+      // Rebuild mapping
+      for (const plan of safePlans) {
+         for (const course of plan.courses) {
+            const dbCourse = await prisma.course.findUnique({
+              where: { code: course.code }
+            });
+            if (dbCourse) {
+               await prisma.curriculumCourse.create({
+                 data: {
+                   curriculumId: curriculum.id,
+                   courseId: dbCourse.id,
+                   semester: plan.semester,
+                   yearLevel: plan.year
+                 }
+               });
+            }
+         }
+      }
+
+      return NextResponse.json({ success: true, message: "Curriculum saved successfully" });
     }
-
-    // Delete existing curriculum courses mapping
-    await prisma.curriculumCourse.deleteMany({
-      where: { curriculumId: curriculum.id }
-    });
-
-    // Rebuild mapping
-    for (const plan of plans) {
-       for (const course of plan.courses) {
-          const dbCourse = await prisma.course.findUnique({
-            where: { code: course.code }
-          });
-          if (dbCourse) {
-             await prisma.curriculumCourse.create({
-               data: {
-                 curriculumId: curriculum.id,
-                 courseId: dbCourse.id,
-                 semester: plan.semester,
-                 yearLevel: plan.year
-               }
-             });
-          }
-       }
-    }
-
-    return NextResponse.json({ success: true, message: "Curriculum saved successfully" });
+    
+    return NextResponse.json({ message: "Invalid action" }, { status: 400 });
 
   } catch (error: any) {
     console.error("Admin Curriculum POST API Error:", error);
