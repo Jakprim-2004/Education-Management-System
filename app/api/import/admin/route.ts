@@ -110,19 +110,47 @@ export async function POST(request: NextRequest) {
         if (row.length < 9) continue;
         const [studentCode, title, firstName, lastName, email, phone, facultyTxt, deptTxt, yearTxt] = row;
         try {
-          const user = await prisma.user.create({
-            data: {
-              email: email || `${studentCode}@ku.ac.th`,
-              passwordHash: await hashPassword(studentCode),
-              role: "student",
-              firstName: title && title.trim() !== '' ? `${title}${firstName}` : firstName,
-              lastName,
-              phone
-            }
-          });
+          const userEmail = email || `${studentCode}@ku.ac.th`;
+          let user = await prisma.user.findUnique({ where: { email: userEmail } });
           
-          await prisma.student.create({
-            data: {
+          if (!user) {
+            const existingStudent = await prisma.student.findUnique({ where: { studentCode } });
+            if (existingStudent) {
+              user = await prisma.user.findUnique({ where: { id: existingStudent.userId } }) || null;
+            }
+          }
+
+          const firstNameParsed = title && title.trim() !== '' ? `${title}${firstName}` : firstName;
+          
+          if (!user) {
+            user = await prisma.user.create({
+              data: {
+                email: userEmail,
+                passwordHash: await hashPassword(studentCode),
+                role: "student",
+                firstName: firstNameParsed,
+                lastName,
+                phone
+              }
+            });
+          } else {
+            user = await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                firstName: firstNameParsed,
+                lastName,
+                phone
+              }
+            });
+          }
+          
+          await prisma.student.upsert({
+            where: { studentCode },
+            update: {
+              departmentId: defaultDept.id,
+              admissionYear: parseInt(yearTxt) || (new Date().getFullYear() + 543)
+            },
+            create: {
               userId: user.id,
               studentCode,
               departmentId: defaultDept.id,
@@ -149,19 +177,48 @@ export async function POST(request: NextRequest) {
         if (row.length < 9) continue;
         const [teacherCode, title, firstName, lastName, position, email, phone, facultyTxt, deptTxt] = row;
         try {
-          const user = await prisma.user.create({
-            data: {
-              email: email || `${teacherCode}@ku.ac.th`,
-              passwordHash: await hashPassword(teacherCode),
-              role: "teacher",
-              firstName: title && title.trim() !== '' ? `${title}${firstName}` : firstName,
-              lastName,
-              phone
+          const userEmail = email || `${teacherCode}@ku.ac.th`;
+          let user = await prisma.user.findUnique({ where: { email: userEmail } });
+
+          if (!user) {
+            const existingTeacher = await prisma.teacher.findUnique({ where: { teacherCode } });
+            if (existingTeacher) {
+              user = await prisma.user.findUnique({ where: { id: existingTeacher.userId } }) || null;
             }
-          });
+          }
+
+          const firstNameParsed = title && title.trim() !== '' ? `${title}${firstName}` : firstName;
+
+          if (!user) {
+            user = await prisma.user.create({
+              data: {
+                email: userEmail,
+                passwordHash: await hashPassword(teacherCode),
+                role: "teacher",
+                firstName: firstNameParsed,
+                lastName,
+                phone
+              }
+            });
+          } else {
+            user = await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                firstName: firstNameParsed,
+                lastName,
+                phone
+              }
+            });
+          }
           
-          await prisma.teacher.create({
-            data: {
+          await prisma.teacher.upsert({
+            where: { teacherCode },
+            update: {
+              departmentId: defaultDept.id,
+              position,
+              specialization: deptTxt
+            },
+            create: {
               userId: user.id,
               teacherCode,
               departmentId: defaultDept.id,
@@ -195,8 +252,15 @@ export async function POST(request: NextRequest) {
           
           const fullName = nameEn && nameEn.trim() !== "-" && nameEn.trim() !== "" ? `${nameTh} (${nameEn})` : nameTh;
 
-          const course = await prisma.course.create({
-            data: {
+          const course = await prisma.course.upsert({
+            where: { code },
+            update: {
+              name: fullName,
+              credits: parseInt(creditsTxt) || 3,
+              type: mappedType as any,
+              departmentId: defaultDept.id
+            },
+            create: {
               code,
               name: fullName,
               credits: parseInt(creditsTxt) || 3,
