@@ -30,6 +30,40 @@ export default function StudentGraduationCheck() {
     }
   });
 
+  const requirements: CurriculumRequirement[] = gradData?.data?.requirements || [];
+  const failed = requirements.filter((r) => r.grade === "F");
+
+  // Fetch prerequisite impact for failed courses — must be before any early returns
+  const [impactData, setImpactData] = useState<any[]>([]);
+  useEffect(() => {
+    if (failed.length === 0) {
+      setImpactData([]);
+      return;
+    }
+    const fetchImpact = async () => {
+      const results = [];
+      for (const f of failed) {
+        try {
+          const allPrereqs = await fetch(`/api/prerequisites`);
+          const allData = await allPrereqs.json();
+          if (allData.success) {
+            const matchedPrereqs = allData.data.filter((p: any) => p.prerequisite.code === f.code);
+            if (matchedPrereqs.length > 0) {
+              results.push({
+                failedCourse: f,
+                blockedCourses: matchedPrereqs.map((p: any) => p.course),
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Impact fetch error:', e);
+        }
+      }
+      setImpactData(results);
+    };
+    fetchImpact();
+  }, [requirements.length]);
+
   if (isLoading) {
     return (
       <Layout role="student">
@@ -52,7 +86,6 @@ export default function StudentGraduationCheck() {
     );
   }
 
-  const requirements: CurriculumRequirement[] = gradData?.data?.requirements || [];
   const stats = gradData?.data?.stats || { 
     passed: 0, 
     inProgress: 0, 
@@ -66,38 +99,6 @@ export default function StudentGraduationCheck() {
   const passed = requirements.filter((r) => r.status === "ผ่าน");
   const inProgress = requirements.filter((r) => r.status === "กำลังเรียน");
   const remaining = requirements.filter((r) => r.status === "ยังไม่ลงทะเบียน");
-  const failed = requirements.filter((r) => r.grade === "F");
-
-  // Fetch prerequisite impact for failed courses
-  const [impactData, setImpactData] = useState<any[]>([]);
-  useEffect(() => {
-    if (failed.length === 0) return;
-    const fetchImpact = async () => {
-      const results = [];
-      for (const f of failed) {
-        try {
-          const idRes = await fetch(`/api/prerequisites?courseId=0&action=view`);
-          // ใช้ course code หา ID จาก requirements
-          const allPrereqs = await fetch(`/api/prerequisites`);
-          const allData = await allPrereqs.json();
-          if (allData.success) {
-            // หา courseId จาก prerequisite data
-            const matchedPrereqs = allData.data.filter((p: any) => p.prerequisite.code === f.code);
-            if (matchedPrereqs.length > 0) {
-              results.push({
-                failedCourse: f,
-                blockedCourses: matchedPrereqs.map((p: any) => p.course),
-              });
-            }
-          }
-        } catch (e) {
-          console.error('Impact fetch error:', e);
-        }
-      }
-      setImpactData(results);
-    };
-    fetchImpact();
-  }, [requirements.length]);
   
   const progressPercent = stats.totalCredits > 0 
     ? Math.round((stats.passedCredits / stats.totalCredits) * 100) 
