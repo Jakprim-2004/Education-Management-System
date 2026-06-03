@@ -235,29 +235,44 @@ export async function POST(request: NextRequest) {
          }
       }
 
-      // Delete existing curriculum courses mapping
-      await prisma.curriculumCourse.deleteMany({
-        where: { curriculumId: curriculum.id }
-      });
+      // Use transaction to prevent partial data loss
+      await prisma.$transaction(async (tx) => {
+        // Delete existing curriculum courses mapping
+        await tx.curriculumCourse.deleteMany({
+          where: { curriculumId: curriculum.id }
+        });
 
-      // Rebuild mapping
-      for (const plan of safePlans) {
-         for (const course of plan.courses) {
-            const dbCourse = await prisma.course.findUnique({
-              where: { code: course.code }
-            });
-            if (dbCourse) {
-               await prisma.curriculumCourse.create({
-                 data: {
-                   curriculumId: curriculum.id,
-                   courseId: dbCourse.id,
-                   semester: plan.semester,
-                   yearLevel: plan.year
+        // Rebuild mapping
+        for (const plan of safePlans) {
+           for (const course of plan.courses) {
+              const dbCourse = await tx.course.findUnique({
+                where: { code: course.code }
+              });
+              if (dbCourse) {
+                 // Skip if already exists in this curriculum to prevent unique constraint crash
+                 const existingLink = await tx.curriculumCourse.findUnique({
+                   where: {
+                     curriculumId_courseId: {
+                       curriculumId: curriculum.id,
+                       courseId: dbCourse.id
+                     }
+                   }
+                 });
+
+                 if (!existingLink) {
+                   await tx.curriculumCourse.create({
+                     data: {
+                       curriculumId: curriculum.id,
+                       courseId: dbCourse.id,
+                       semester: plan.semester,
+                       yearLevel: plan.year
+                     }
+                   });
                  }
-               });
-            }
-         }
-      }
+              }
+           }
+        }
+      });
 
       return NextResponse.json({ success: true, message: "Curriculum saved successfully" });
     }

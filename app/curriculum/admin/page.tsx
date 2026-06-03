@@ -166,6 +166,7 @@ export default function AdminCurriculum() {
       
       setIsEditing(false);
       toast({ title: "สำเร็จ", description: "บันทึกปรับปรุงหลักสูตรเรียบร้อยแล้ว" });
+      refetch();
     } catch (err: any) {
       console.error(err);
       toast({ title: "ข้อผิดพลาด", description: "เกิดข้อผิดพลาดในการบันทึกหลักสูตร", variant: "destructive" });
