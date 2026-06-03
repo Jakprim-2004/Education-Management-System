@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     if (importType === "students") {
       parsedImportType = ImportType.students;
       if (!headers.join(',').includes("รหัสนิสิต")) {
-        return NextResponse.json({ message: "รูปแบบ Header ไม่ถูกต้องสำหรับแม่แบบ 'นิสิต'" }, { status: 400 });
+        return NextResponse.json({ message: "รูปแบบ Header ไม่ถูกต้องสำหรับเทมเพลต 'นิสิต'" }, { status: 400 });
       }
 
       const defaultDept = await prisma.department.findFirst();
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
     else if (importType === "teachers") {
       parsedImportType = ImportType.teachers;
       if (!headers.join(',').includes("รหัสอาจารย์")) {
-        return NextResponse.json({ message: "รูปแบบ Header ไม่ถูกต้องสำหรับแม่แบบ 'อาจารย์'" }, { status: 400 });
+        return NextResponse.json({ message: "รูปแบบ Header ไม่ถูกต้องสำหรับเทมเพลต 'อาจารย์'" }, { status: 400 });
       }
       
       const defaultDept = await prisma.department.findFirst();
@@ -236,7 +236,7 @@ export async function POST(request: NextRequest) {
     else if (importType === "courses") {
       parsedImportType = ImportType.courses;
       if (!headers.join(',').includes("รหัสวิชา")) {
-        return NextResponse.json({ message: "รูปแบบ Header ไม่ถูกต้องสำหรับแม่แบบ 'รายวิชา'" }, { status: 400 });
+        return NextResponse.json({ message: "รูปแบบ Header ไม่ถูกต้องสำหรับเทมเพลต 'รายวิชา'" }, { status: 400 });
       }
       
       const defaultDept = await prisma.department.findFirst();
@@ -417,7 +417,7 @@ export async function POST(request: NextRequest) {
     else if (importType === "registration") {
       parsedImportType = ImportType.enrollments;
       if (!headers.join(',').includes("รหัสนิสิต")) {
-        return NextResponse.json({ message: "รูปแบบ Header ไม่ถูกต้องสำหรับแม่แบบ 'การลงทะเบียน'" }, { status: 400 });
+        return NextResponse.json({ message: "รูปแบบ Header ไม่ถูกต้องสำหรับเทมเพลต 'การลงทะเบียน'" }, { status: 400 });
       }
 
       for (const row of dataRows) {
