@@ -28,6 +28,7 @@ export default function AdminCourses() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("ทั้งหมด");
+  const [selectedCurriculumYear, setSelectedCurriculumYear] = useState<string>("ทั้งหมด");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [teacherSearch, setTeacherSearch] = useState("");
@@ -51,9 +52,10 @@ export default function AdminCourses() {
 
   // Fetch Courses
   const { data: coursesResponse, isLoading } = useQuery({
-    queryKey: ['adminCourses'],
+    queryKey: ['adminCourses', selectedCurriculumYear],
     queryFn: async () => {
-      const res = await fetch('/api/courses/admin');
+      const params = selectedCurriculumYear !== "ทั้งหมด" ? `?curriculumYear=${selectedCurriculumYear}` : "";
+      const res = await fetch(`/api/courses/admin${params}`);
       if (!res.ok) throw new Error('Failed to fetch courses');
       return res.json();
     }
@@ -267,13 +269,25 @@ export default function AdminCourses() {
           <select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
-            className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
           >
-            <option value="ทั้งหมด">ทึกประเภทวิชา</option>
+            <option value="ทั้งหมด">ทุกประเภทวิชา</option>
             <option value="วิชาบังคับ">วิชาบังคับ</option>
             <option value="วิชาเลือก">วิชาเลือก</option>
             <option value="วิชาศึกษาทั่วไป">วิชาศึกษาทั่วไป</option>
           </select>
+          {coursesResponse?.curricula && coursesResponse.curricula.length > 0 && (
+            <select
+              value={selectedCurriculumYear}
+              onChange={(e) => setSelectedCurriculumYear(e.target.value)}
+              className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+            >
+              <option value="ทั้งหมด">ทุกปีหลักสูตร</option>
+              {coursesResponse.curricula.map((c: any) => (
+                <option key={c.id} value={c.year}>หลักสูตร {c.year} ({c.name})</option>
+              ))}
+            </select>
+          )}
         </div>
 
         {showForm && (

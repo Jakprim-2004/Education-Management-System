@@ -34,7 +34,17 @@ export async function GET(request: NextRequest) {
     const payload = await verifyToken(token);
     if (!payload || payload.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
+    const searchParams = request.nextUrl.searchParams;
+    const curriculumYear = searchParams.get("curriculumYear");
+
     const courses = await prisma.course.findMany({
+      where: curriculumYear ? {
+        curriculumCourses: {
+          some: {
+            curriculum: { year: parseInt(curriculumYear) }
+          }
+        }
+      } : undefined,
       orderBy: { code: 'asc' },
       include: {
         department: true,
@@ -87,7 +97,13 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({ success: true, data: formattedCourses }, { status: 200 });
+    const availableCurricula = await prisma.curriculum.findMany({
+      where: { status: "active" },
+      orderBy: { year: "desc" },
+      select: { id: true, year: true, name: true }
+    });
+
+    return NextResponse.json({ success: true, data: formattedCourses, curricula: availableCurricula }, { status: 200 });
 
   } catch (error: any) {
     console.error("Admin Courses GET API Error:", error);
@@ -138,6 +154,15 @@ export async function POST(request: NextRequest) {
       teacher = await prisma.teacher.create({ data: { userId: tUser.id, teacherCode: `T${Date.now()}`, departmentId: firstDept.id }});
     }
 
+    let assignedTeacher = teacher;
+    if (coordinatorId) {
+      const coordinatorTeacher = await prisma.teacher.findUnique({ where: { id: parseInt(coordinatorId) } });
+      if (!coordinatorTeacher) {
+        return NextResponse.json({ message: "Teacher not found for coordinator" }, { status: 400 });
+      }
+      assignedTeacher = coordinatorTeacher;
+    }
+
     const firstDept = await prisma.department.findFirst();
 
     let reqRoom = room?.trim() || "";
@@ -175,7 +200,7 @@ export async function POST(request: NextRequest) {
           create: {
             sectionNumber: "800",
             semesterId: semester.id,
-            teacherId: teacher.id,
+            teacherId: assignedTeacher.id,
               schedules: {
               create: {
                 dayOfWeek: reqDayOfWeek as any,
@@ -241,6 +266,17 @@ export async function PUT(request: NextRequest) {
           }))
         });
       }
+    }
+
+    if (coordinatorId) {
+      const coordinatorTeacher = await prisma.teacher.findUnique({ where: { id: parseInt(coordinatorId) } });
+      if (!coordinatorTeacher) {
+        return NextResponse.json({ message: "Teacher not found for coordinator" }, { status: 400 });
+      }
+      await prisma.courseSection.updateMany({
+        where: { courseId: parseInt(id) },
+        data: { teacherId: coordinatorTeacher.id }
+      });
     }
 
     if (dayOfWeek || startTime || endTime || room !== undefined) {
