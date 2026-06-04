@@ -565,7 +565,7 @@ export async function POST(request: NextRequest) {
             where: {
               studentId_sectionId: { studentId: student.id, sectionId: section.id }
             },
-            data: { grade: gradeMark }
+            data: { grade: gradeMark, status: "completed" }
           });
           
           successCount++;

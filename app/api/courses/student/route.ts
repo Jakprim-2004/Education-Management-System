@@ -74,7 +74,8 @@ export async function GET(request: NextRequest) {
 
       // Map DB status to UI status
       const dbStatus = enrollment.status || "enrolled";
-      const isCompleted = dbStatus === "completed";
+      const hasGrade = enrollment.grade && enrollment.grade !== "-" && enrollment.grade !== "";
+      const isCompleted = dbStatus === "completed" || hasGrade;
       const uiStatus = isCompleted ? "completed" : "active";
       const progress = isCompleted ? 100 : 50;
 
@@ -102,7 +103,10 @@ export async function GET(request: NextRequest) {
     };
 
     (student as any).enrollments.forEach((enrollment: any) => {
-      if (enrollment.status === "completed" && enrollment.grade) {
+      const hasGrade = enrollment.grade && enrollment.grade !== "-" && enrollment.grade !== "";
+      const isCompleted = enrollment.status === "completed" || hasGrade;
+      
+      if (isCompleted && enrollment.grade) {
         const credits = enrollment.section.course.credits;
         totalCredits += credits;
         
