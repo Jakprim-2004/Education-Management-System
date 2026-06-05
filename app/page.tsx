@@ -128,29 +128,7 @@ export default function Login() {
           </p>
         </form>
 
-        <div className="mt-6 pt-6 border-t border-slate-200">
-          <p className="text-xs text-slate-500 text-center mb-3">บัญชีทดลอง (password ทุกบัญชี):</p>
-          <div className="grid grid-cols-1 gap-1 text-xs text-slate-600">
-            {[
-              { label: "🎓 ปี 1 (รหัส 68, หลักสูตร 65)", email: "year1@ku.ac.th" },
-              { label: "🎓 ปี 2 (รหัส 67, หลักสูตร 65)", email: "year2@ku.ac.th" },
-              { label: "🎓 ปี 3 (รหัส 66, หลักสูตร 65)", email: "year3@ku.ac.th" },
-              { label: "🎓 ปี 4 (รหัส 65, หลักสูตร 65)", email: "year4@ku.ac.th" },
-              { label: "🎓 ปี 5 (รหัส 64, หลักสูตร 60)", email: "year5@ku.ac.th" },
-              { label: "👨‍🏫 อาจารย์", email: "teacher@ku.ac.th" },
-              { label: "👨‍💼 ผู้ดูแลระบบ", email: "admin@ku.ac.th" },
-            ].map((acc) => (
-              <button
-                key={acc.email}
-                type="button"
-                onClick={() => { setEmail(acc.email); setPassword("password"); }}
-                className="block w-full text-left hover:text-primary hover:bg-green-50 px-2 py-1.5 rounded transition-colors"
-              >
-                {acc.label}: <span className="font-medium">{acc.email}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+
       </Card>
     </div>
   );
