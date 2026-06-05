@@ -61,9 +61,9 @@ async function getOrCreateDefaultDept() {
   if (!dept) {
     let fac = await prisma.faculty.findFirst();
     if (!fac) {
-      fac = await prisma.faculty.create({ data: { name: "คณะทั่วไป", code: "FAC_DEFAULT" } });
+      fac = await prisma.faculty.create({ data: { name: "คณะทั่วไป", code: "FAC_DEF" } });
     }
-    dept = await prisma.department.create({ data: { name: "ภาควิชาทั่วไป", facultyId: fac.id, code: "DEPT_DEFAULT" } });
+    dept = await prisma.department.create({ data: { name: "ภาควิชาทั่วไป", facultyId: fac.id, code: "DEPT_DEF" } });
   }
   return dept;
 }
