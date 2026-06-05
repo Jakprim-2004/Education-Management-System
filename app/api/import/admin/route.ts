@@ -56,6 +56,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
+async function getOrCreateDefaultDept() {
+  let dept = await prisma.department.findFirst();
+  if (!dept) {
+    let fac = await prisma.faculty.findFirst();
+    if (!fac) {
+      fac = await prisma.faculty.create({ data: { name: "คณะทั่วไป" } });
+    }
+    dept = await prisma.department.create({ data: { name: "ภาควิชาทั่วไป", facultyId: fac.id } });
+  }
+  return dept;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
@@ -103,8 +115,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "รูปแบบ Header ไม่ถูกต้องสำหรับเทมเพลต 'นิสิต'" }, { status: 400 });
       }
 
-      const defaultDept = await prisma.department.findFirst();
-      if (!defaultDept) return NextResponse.json({ message: "เกิดข้อผิดพลาด: ไม่พบข้อมูลภาควิชาในระบบเลย กรุณาตั้งค่าภาควิชาก่อน" }, { status: 400 });
+      const defaultDept = await getOrCreateDefaultDept();
 
       for (const row of dataRows) {
         if (row.length < 9) continue;
@@ -170,8 +181,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "รูปแบบ Header ไม่ถูกต้องสำหรับเทมเพลต 'อาจารย์'" }, { status: 400 });
       }
       
-      const defaultDept = await prisma.department.findFirst();
-      if (!defaultDept) return NextResponse.json({ message: "เกิดข้อผิดพลาด: ไม่พบข้อมูลภาควิชาในระบบ" }, { status: 400 });
+      const defaultDept = await getOrCreateDefaultDept();
 
       for (const row of dataRows) {
         if (row.length < 9) continue;
@@ -239,8 +249,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "รูปแบบ Header ไม่ถูกต้องสำหรับเทมเพลต 'รายวิชา'" }, { status: 400 });
       }
       
-      const defaultDept = await prisma.department.findFirst();
-      if (!defaultDept) return NextResponse.json({ message: "เกิดข้อผิดพลาด: ไม่พบข้อมูลภาควิชาในระบบ" }, { status: 400 });
+      const defaultDept = await getOrCreateDefaultDept();
 
       for (const row of dataRows) {
         if (row.length < 6) continue;
@@ -361,8 +370,7 @@ export async function POST(request: NextRequest) {
         try {
           let course = await prisma.course.findUnique({ where: { code: courseCode } });
           if (!course) {
-            const defaultDept = await prisma.department.findFirst();
-            if (!defaultDept) { errorCount++; continue; }
+            const defaultDept = await getOrCreateDefaultDept();
             
             let mappedType = "required";
             if (typeTxt && typeTxt.includes("เลือก")) mappedType = "elective";
@@ -385,18 +393,16 @@ export async function POST(request: NextRequest) {
             if (!isNaN(parsedYear)) {
               let curr = await prisma.curriculum.findFirst({ where: { year: parsedYear } });
               if (!curr) {
-                const defaultDept = await prisma.department.findFirst();
-                if (defaultDept) {
-                  curr = await prisma.curriculum.create({
-                    data: {
-                      year: parsedYear,
-                      name: `หลักสูตรปรับปรุง พ.ศ. ${parsedYear}`,
-                      totalCredits: 120,
-                      departmentId: defaultDept.id,
-                      status: "active"
-                    }
-                  });
-                }
+                const defaultDept = await getOrCreateDefaultDept();
+                curr = await prisma.curriculum.create({
+                  data: {
+                    year: parsedYear,
+                    name: `หลักสูตรปรับปรุง พ.ศ. ${parsedYear}`,
+                    totalCredits: 120,
+                    departmentId: defaultDept.id,
+                    status: "active"
+                  }
+                });
               }
               if (curr) targetCurriculum = curr;
             }
@@ -485,11 +491,39 @@ export async function POST(request: NextRequest) {
         if (row.length < 5) continue;
         const [studentCode, courseCode, semNum, startYear, groupNum] = row;
         try {
-          const student = await prisma.student.findUnique({ where: { studentCode } });
-          const course = await prisma.course.findUnique({ where: { code: courseCode } });
-          if (!student || !course) {
-            errorCount++;
-            continue;
+          let student = await prisma.student.findUnique({ where: { studentCode } });
+          if (!student) {
+            const defaultDept = await getOrCreateDefaultDept();
+            const user = await prisma.user.create({
+              data: {
+                email: `${studentCode}@ku.ac.th`,
+                passwordHash: await hashPassword(studentCode),
+                role: "student",
+                firstName: "Dummy",
+                lastName: "Student",
+              }
+            });
+            student = await prisma.student.create({
+              data: {
+                userId: user.id,
+                studentCode,
+                departmentId: defaultDept.id,
+                admissionYear: parseInt(startYear) || (new Date().getFullYear() + 543)
+              }
+            });
+          }
+          let course = await prisma.course.findUnique({ where: { code: courseCode } });
+          if (!course) {
+            const defaultDept = await getOrCreateDefaultDept();
+            course = await prisma.course.create({
+              data: {
+                code: courseCode,
+                name: courseCode,
+                credits: 3,
+                type: "required",
+                departmentId: defaultDept.id
+              }
+            });
           }
 
           let semester = await prisma.semester.findFirst({
@@ -512,9 +546,27 @@ export async function POST(request: NextRequest) {
             where: { courseId: course.id, semesterId: semester.id, sectionNumber: groupNum }
           });
           if (!section) {
-            // Find a teacher to assign dummy section
-             const teacher = await prisma.teacher.findFirst();
-             if(!teacher) throw new Error("No teachers available to create section fallback");
+             let teacher = await prisma.teacher.findFirst();
+             if (!teacher) {
+               const defaultDept = await getOrCreateDefaultDept();
+               const tUser = await prisma.user.create({
+                 data: {
+                   email: `dummy_teacher_${Date.now()}@ku.ac.th`,
+                   passwordHash: await hashPassword("dummy"),
+                   role: "teacher",
+                   firstName: "Dummy",
+                   lastName: "Teacher"
+                 }
+               });
+               teacher = await prisma.teacher.create({
+                 data: {
+                   userId: tUser.id,
+                   teacherCode: `T${Date.now()}`,
+                   departmentId: defaultDept.id,
+                   position: "อาจารย์"
+                 }
+               });
+             }
              section = await prisma.courseSection.create({
                  data: {
                     courseId: course.id,
