@@ -116,9 +116,9 @@ export default function TeacherMakeupClass() {
     const timeParts = makeupTime.split(" ");
     let startTime = "08:00";
     let endTime = "10:50";
-    if (timeParts.length >= 4) {
-      startTime = timeParts[1];
-      endTime = timeParts[3];
+    if (timeParts.length >= 3) {
+      startTime = timeParts[0];
+      endTime = timeParts[2];
     }
 
     sendMakeupMutation.mutate({
@@ -371,19 +371,11 @@ export default function TeacherMakeupClass() {
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
                   >
                     <option value="">เลือกเวลา...</option>
-                    <option value="จันทร์ 08:00 - 10:50">จันทร์ 08:00 - 10:50</option>
-                    <option value="จันทร์ 17:00 - 19:50">จันทร์ 17:00 - 19:50</option>
-                    <option value="อังคาร 08:00 - 10:50">อังคาร 08:00 - 10:50</option>
-                    <option value="อังคาร 17:00 - 19:50">อังคาร 17:00 - 19:50</option>
-                    <option value="พุธ 08:00 - 10:50">พุธ 08:00 - 10:50</option>
-                    <option value="พุธ 17:00 - 19:50">พุธ 17:00 - 19:50</option>
-                    <option value="พฤหัสบดี 08:00 - 10:50">พฤหัสบดี 08:00 - 10:50</option>
-                    <option value="พฤหัสบดี 17:00 - 19:50">พฤหัสบดี 17:00 - 19:50</option>
-                    <option value="ศุกร์ 08:00 - 10:50">ศุกร์ 08:00 - 10:50</option>
-                    <option value="ศุกร์ 15:00 - 17:50">ศุกร์ 15:00 - 17:50</option>
-                    <option value="เสาร์ 09:00 - 11:50">เสาร์ 09:00 - 11:50</option>
-                    <option value="เสาร์ 13:00 - 15:50">เสาร์ 13:00 - 15:50</option>
-                    <option value="อาทิตย์ 09:00 - 11:50">อาทิตย์ 09:00 - 11:50</option>
+                    <option value="08:00 - 10:50">08:00 - 10:50</option>
+                    <option value="09:00 - 11:50">09:00 - 11:50</option>
+                    <option value="13:00 - 15:50">13:00 - 15:50</option>
+                    <option value="15:00 - 17:50">15:00 - 17:50</option>
+                    <option value="17:00 - 19:50">17:00 - 19:50</option>
                   </select>
                 </div>
               </div>
