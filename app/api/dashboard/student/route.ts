@@ -51,6 +51,12 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    const notifications = await prisma.notification.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      where: { userId: payload.userId }
+    });
+
     // 3. Transform Data Context
     let totalCredits = 0;
     let completedCoursesCount = 0;
@@ -80,12 +86,20 @@ export async function GET(request: NextRequest) {
       { id: "credits", label: "หน่วยกิตที่ได้", value: totalCredits.toString(), color: "bg-purple-100 text-purple-600" },
     ];
 
-    const announcements = rawAnnouncements.map(a => ({
-      id: a.id,
-      title: a.title,
-      date: new Date(a.createdAt).toLocaleDateString("th-TH", { day: 'numeric', month: 'long', year: 'numeric' }),
-      type: a.isPinned ? "important" : "update"
-    }));
+    const announcements = [
+      ...rawAnnouncements.map(a => ({
+        id: `announcement-${a.id}`,
+        title: a.title,
+        date: new Date(a.createdAt || new Date()).toLocaleDateString("th-TH", { day: 'numeric', month: 'long', year: 'numeric' }),
+        type: a.isPinned ? "important" : "update"
+      })),
+      ...notifications.map(n => ({
+        id: `notification-${n.id}`,
+        title: n.title,
+        date: new Date(n.createdAt || new Date()).toLocaleDateString("th-TH", { day: 'numeric', month: 'long', year: 'numeric' }),
+        type: n.type === "makeup" ? "important" : "update"
+      }))
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
     return NextResponse.json({
       success: true,

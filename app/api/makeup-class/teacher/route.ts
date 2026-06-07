@@ -158,6 +158,32 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    const section = await prisma.courseSection.findUnique({
+      where: { id: parseInt(sectionId) },
+      include: {
+        course: true,
+        enrollments: {
+          include: { student: true }
+        }
+      }
+    });
+
+    if (section) {
+      const notificationsData = section.enrollments.map(enr => ({
+        userId: enr.student.userId,
+        title: `นัดสอนชดเชยวิชา ${section.course.name}`,
+        message: `นัดชดเชยวันที่ ${new Date(makeupDate).toLocaleDateString("th-TH", { day: 'numeric', month: 'long', year: 'numeric' })} เวลา ${startTime} - ${endTime}`,
+        type: "makeup" as const,
+        isRead: false
+      }));
+
+      if (notificationsData.length > 0) {
+        await prisma.notification.createMany({
+          data: notificationsData
+        });
+      }
+    }
+
     return NextResponse.json({ success: true, data: newMakeup }, { status: 201 });
   } catch (error: any) {
     console.error("Makeup Class POST API Error:", error);
