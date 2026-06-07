@@ -47,7 +47,8 @@ export async function GET(request: NextRequest) {
       take: 5,
       orderBy: { createdAt: 'desc' },
       where: {
-        OR: [{ targetRole: 'all' }, { targetRole: 'student' }]
+        OR: [{ targetRole: 'all' }, { targetRole: 'student' }],
+        status: { not: 'แบบร่าง' }
       }
     });
 

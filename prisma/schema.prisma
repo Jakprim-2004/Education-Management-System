@@ -361,6 +361,7 @@ model Announcement {
   content    String              @db.Text
   targetRole AnnouncementTarget? @default(all) @map("target_role")
   isPinned   Boolean?            @default(false) @map("is_pinned")
+  status     String?             @default("เผยแพร่") @db.VarChar(50)
   createdBy  Int                 @map("created_by")
   createdAt  DateTime?           @default(now()) @map("created_at")
   updatedAt  DateTime?           @default(now()) @updatedAt @map("updated_at")
@@ -391,6 +392,8 @@ model ImportLog {
   importType  ImportType   @map("import_type")
   totalRows   Int?         @default(0) @map("total_rows")
   successRows Int?         @default(0) @map("success_rows")
+  createdRows Int?         @default(0) @map("created_rows")
+  updatedRows Int?         @default(0) @map("updated_rows")
   errorRows   Int?         @default(0) @map("error_rows")
   status      ImportStatus? @default(processing)
   createdAt   DateTime?    @default(now()) @map("created_at")

@@ -36,6 +36,7 @@ interface DashboardData {
   announcements: {
     id: number;
     title: string;
+    content: string;
     date: string;
     type: string;
   }[];
@@ -44,6 +45,7 @@ interface DashboardData {
 export default function TeacherDashboard() {
   const [selectedSemesterId, setSelectedSemesterId] = useState<number | null>(null);
   const [selectedCurriculumYear, setSelectedCurriculumYear] = useState<number | null>(null);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<any | null>(null);
 
   const { data: dashboardResponse, isLoading, isError, error } = useQuery({
     queryKey: ['teacherDashboard', selectedSemesterId, selectedCurriculumYear],
@@ -226,20 +228,61 @@ export default function TeacherDashboard() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {data.announcements.length > 0 ? data.announcements.map((announcement) => (
-              <div key={announcement.id} className="p-3 border border-slate-200 rounded-lg">
-                <div className="flex gap-2 mb-2">
-                  <span className={`text-xs px-2 py-0.5 rounded font-medium whitespace-nowrap ${announcement.type === "important" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
-                    {announcement.type === "important" ? "สำคัญ" : "ข่าวสาร"}
-                  </span>
+              <div 
+                key={announcement.id} 
+                onClick={() => setSelectedAnnouncement(announcement)}
+                className="p-3 border border-slate-200 rounded-lg cursor-pointer hover:border-primary/50 hover:bg-slate-50/50 transition-colors flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex gap-2 mb-2">
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium whitespace-nowrap ${announcement.type === "important" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
+                      {announcement.type === "important" ? "สำคัญ" : "ข่าวสาร"}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900 line-clamp-1">{announcement.title}</p>
+                  <p className="text-xs text-slate-600 mt-1.5 line-clamp-3 whitespace-pre-line">{announcement.content}</p>
                 </div>
-                <p className="text-sm font-medium text-slate-900">{announcement.title}</p>
-                <p className="text-xs text-slate-500 mt-2">{announcement.date}</p>
+                <p className="text-xs text-slate-500 mt-3">{announcement.date}</p>
               </div>
             )) : (
               <div className="col-span-full text-sm text-slate-500">ไม่มีประกาศใหม่</div>
             )}
           </div>
         </Card>
+
+        {/* Announcement Detail Modal */}
+        {selectedAnnouncement && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200">
+              {/* Modal Header */}
+              <div className="p-5 border-b border-slate-100 flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex gap-2 mb-2">
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${selectedAnnouncement.type === "important" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
+                      {selectedAnnouncement.type === "important" ? "สำคัญ" : "ข่าวสาร"}
+                    </span>
+                    <span className="text-xs text-slate-500">{selectedAnnouncement.date}</span>
+                  </div>
+                  <h3 className="font-bold text-lg text-slate-900 leading-snug">{selectedAnnouncement.title}</h3>
+                </div>
+                <button 
+                  onClick={() => setSelectedAnnouncement(null)}
+                  className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition-colors font-semibold"
+                >
+                  ✕
+                </button>
+              </div>
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto flex-1 text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
+                {selectedAnnouncement.content}
+              </div>
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-slate-100 flex justify-end">
+                <Button onClick={() => setSelectedAnnouncement(null)}>ปิดหน้าต่าง</Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

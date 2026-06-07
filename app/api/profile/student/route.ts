@@ -65,6 +65,13 @@ export async function GET(request: NextRequest) {
 
     const gpa = countedCredits > 0 ? (earnedPoints / countedCredits).toFixed(2) : "0.00";
 
+    // Fetch current semester to determine current academic year
+    const currentSemester = await prisma.semester.findFirst({
+      where: { isCurrent: true }
+    });
+    const currentAcademicYear = currentSemester ? currentSemester.academicYear : (new Date().getFullYear() + 543);
+    const yearLevel = Math.max(1, currentAcademicYear - student.admissionYear + 1);
+
     return NextResponse.json({
       success: true,
       data: {
@@ -76,6 +83,7 @@ export async function GET(request: NextRequest) {
         department: (student as any).department?.name || "ไม่ระบุภาควิชา",
         faculty: (student as any).department?.faculty?.name || "ไม่ระบุคณะ",
         admissionYear: String(student.admissionYear),
+        yearLevel: yearLevel,
         gpa: gpa,
         totalCredits: String(totalCredits),
         academicAdvisor: (student as any).advisor ? `${(student as any).advisor.user.firstName} ${(student as any).advisor.user.lastName}` : "",

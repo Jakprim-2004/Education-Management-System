@@ -133,7 +133,8 @@ export async function GET(request: NextRequest) {
       take: 4,
       orderBy: { createdAt: 'desc' },
       where: {
-        OR: [{ targetRole: 'all' }, { targetRole: 'teacher' }]
+        OR: [{ targetRole: 'all' }, { targetRole: 'teacher' }],
+        status: { not: 'แบบร่าง' }
       }
     });
 
@@ -221,6 +222,7 @@ export async function GET(request: NextRequest) {
     const announcements = rawAnnouncements.map(a => ({
       id: a.id,
       title: a.title,
+      content: a.content,
       date: new Date(a.createdAt || new Date()).toLocaleDateString("th-TH", { day: 'numeric', month: 'long', year: 'numeric' }),
       type: a.isPinned ? "important" : "update"
     }));

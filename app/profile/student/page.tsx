@@ -329,11 +329,17 @@ export default function StudentProfile() {
               <h2 className="text-2xl font-bold text-slate-900 mb-2">
                 {profile.firstName} {profile.lastName}
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="text-slate-600">รหัสนิสิต</p>
                   <p className="font-semibold text-slate-900">
                     {profile.studentId}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-600">ชั้นปี</p>
+                  <p className="font-semibold text-slate-900">
+                    ชั้นปีที่ {profile.yearLevel || "-"}
                   </p>
                 </div>
                 <div>
@@ -454,21 +460,27 @@ export default function StudentProfile() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                คณะ/สาขา
+                คณะ
               </label>
-              <p className="text-slate-900">{profile.department}</p>
+              <p className="text-slate-900">{profile.faculty}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                วิทยาการคอมพิวเตอร์ (Computer Science)
+                ภาควิชา/สาขาวิชา
               </label>
-              <p className="text-slate-900">{profile.program}</p>
+              <p className="text-slate-900">{profile.department}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 ปีที่เข้าศึกษา (รหัส 2 ตัวแรก)
               </label>
               <p className="text-slate-900">{profile.admissionYear}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                ชั้นปีปัจจุบัน
+              </label>
+              <p className="text-slate-900">ชั้นปีที่ {profile.yearLevel || "-"}</p>
             </div>
           </div>
         </Card>

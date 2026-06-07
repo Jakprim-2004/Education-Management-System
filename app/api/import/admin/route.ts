@@ -37,6 +37,19 @@ export async function GET(request: NextRequest) {
       if (log.status === "completed") statusLabel = "success";
       else if (log.status === "failed") statusLabel = "error";
 
+      const createdRows = log.createdRows || 0;
+      const updatedRows = log.updatedRows || 0;
+      let message = "กำลังประมวลผล...";
+      if (log.status === "completed") {
+        const parts: string[] = [];
+        if (createdRows > 0) parts.push(`สร้างใหม่ ${createdRows} รายการ`);
+        if (updatedRows > 0) parts.push(`อัปเดต ${updatedRows} รายการ`);
+        if (log.errorRows && log.errorRows > 0) parts.push(`ผิดพลาด ${log.errorRows} รายการ`);
+        message = parts.length > 0 ? `นำเข้าสำเร็จ: ${parts.join(', ')}` : "นำเข้าสำเร็จ (ไม่มีข้อมูลใหม่)";
+      } else if (log.status === "failed") {
+        message = "ข้อผิดพลาด";
+      }
+
       return {
         id: log.id.toString(),
         date: log.createdAt ? new Date(log.createdAt).toISOString().replace(/T/, ' ').slice(0, 16) : "N/A",
@@ -44,7 +57,10 @@ export async function GET(request: NextRequest) {
         file: log.fileName,
         status: statusLabel,
         records: log.successRows || 0,
-        message: log.status === "completed" ? "นำเข้าสำเร็จ" : (log.status === "failed" ? "ข้อผิดพลาด" : "กำลังประมวลผล...")
+        createdRecords: createdRows,
+        updatedRecords: updatedRows,
+        errorRecords: log.errorRows || 0,
+        message
       };
     });
 
@@ -105,6 +121,8 @@ export async function POST(request: NextRequest) {
     const headers = rows[0];
     const dataRows = rows.slice(1);
     let successCount = 0;
+    let createdCount = 0;
+    let updatedCount = 0;
     let errorCount = 0;
 
     let parsedImportType: ImportType = ImportType.enrollments;
@@ -132,6 +150,8 @@ export async function POST(request: NextRequest) {
           }
 
           const firstNameParsed = title && title.trim() !== '' ? `${title}${firstName}` : firstName;
+          
+          const isExisting = await prisma.student.findUnique({ where: { studentCode } });
           
           if (!user) {
             user = await prisma.user.create({
@@ -169,6 +189,7 @@ export async function POST(request: NextRequest) {
             }
           });
           successCount++;
+          if (isExisting) { updatedCount++; } else { createdCount++; }
         } catch (e) {
           console.error("Student Import Row Error:", e);
           errorCount++;
@@ -198,6 +219,8 @@ export async function POST(request: NextRequest) {
           }
 
           const firstNameParsed = title && title.trim() !== '' ? `${title}${firstName}` : firstName;
+          
+          const isExisting = await prisma.teacher.findUnique({ where: { teacherCode } });
 
           if (!user) {
             user = await prisma.user.create({
@@ -237,6 +260,7 @@ export async function POST(request: NextRequest) {
             }
           });
           successCount++;
+          if (isExisting) { updatedCount++; } else { createdCount++; }
         } catch (e) {
           console.error("Teacher Import Row Error:", e);
           errorCount++;
@@ -261,6 +285,8 @@ export async function POST(request: NextRequest) {
           
           const fullName = nameEn && nameEn.trim() !== "-" && nameEn.trim() !== "" ? `${nameTh} (${nameEn})` : nameTh;
 
+          const isExistingCourse = await prisma.course.findUnique({ where: { code } });
+          
           const course = await prisma.course.upsert({
             where: { code },
             update: {
@@ -327,6 +353,7 @@ export async function POST(request: NextRequest) {
           }
 
           successCount++;
+          if (isExistingCourse) { updatedCount++; } else { createdCount++; }
         } catch (e) {
           console.error("Course Import Row Error:", e);
           errorCount++;
@@ -413,6 +440,10 @@ export async function POST(request: NextRequest) {
              continue; // fallback failed
           }
 
+          const isExistingCurr = await prisma.curriculumCourse.findUnique({
+            where: { curriculumId_courseId: { curriculumId: targetCurriculum.id, courseId: course.id } }
+          });
+          
           await prisma.curriculumCourse.upsert({
             where: {
               curriculumId_courseId: { curriculumId: targetCurriculum.id, courseId: course.id }
@@ -475,6 +506,7 @@ export async function POST(request: NextRequest) {
           }
 
           successCount++;
+          if (isExistingCurr) { updatedCount++; } else { createdCount++; }
         } catch (e) {
           console.error("Curriculum Import Row Error:", e);
           errorCount++;
@@ -577,6 +609,10 @@ export async function POST(request: NextRequest) {
              })
           }
 
+          const isExistingEnroll = await prisma.enrollment.findUnique({
+             where: { studentId_sectionId: { studentId: student.id, sectionId: section.id } }
+          });
+          
           await prisma.enrollment.upsert({
              where: {
                 studentId_sectionId: { studentId: student.id, sectionId: section.id }
@@ -586,6 +622,7 @@ export async function POST(request: NextRequest) {
           });
           
           successCount++;
+          if (isExistingEnroll) { updatedCount++; } else { createdCount++; }
         } catch (e) {
           console.error("Registration Import Error:", e);
           errorCount++;
@@ -640,6 +677,8 @@ export async function POST(request: NextRequest) {
         importType: parsedImportType,
         totalRows: dataRows.length,
         successRows: successCount,
+        createdRows: createdCount,
+        updatedRows: updatedCount,
         errorRows: errorCount,
         status: ImportStatus.completed
       }

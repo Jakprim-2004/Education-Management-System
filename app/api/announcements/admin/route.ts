@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         // Calculate date from createdAt or use empty
         date: a.createdAt ? new Date(a.createdAt).toISOString().split('T')[0] : "N/A",
         target: targetLabel,
-        status: "เผยแพร่", // Schema lacks status, hardcoded to published
+        status: a.status || "เผยแพร่",
         views: Math.floor(Math.random() * 1000) // Mocking views for UI completeness
       };
     });
@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
         title,
         content,
         targetRole: targetRoleEnum,
+        status: status || "เผยแพร่",
         createdBy: payload.userId as number
       }
     });
@@ -125,6 +126,7 @@ export async function PUT(request: NextRequest) {
         title,
         content,
         targetRole: targetRoleEnum,
+        status: status || "เผยแพร่",
       }
     });
 
