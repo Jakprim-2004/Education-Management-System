@@ -189,6 +189,34 @@ export default function TeacherStudentList() {
     return matchesSearch && matchesCourse;
   });
 
+  const handleExport = () => {
+    if (filteredStudents.length === 0) {
+      toast({ title: "ไม่มีข้อมูล", description: "ไม่มีข้อมูลสำหรับส่งออก", variant: "destructive" });
+      return;
+    }
+    const headers = ["รหัสนิสิต", "ชื่อ-นามสกุล", "อีเมล", "เข้าเรียน", "งาน", "กลางภาค", "ปลายภาค", "เกรด"];
+    const csvContent = [
+      headers.join(","),
+      ...filteredStudents.map(s => {
+        const edited = editedRows[s.id] || {};
+        const att = edited.attendance ?? s.attendance ?? "-";
+        const asg = edited.assignment ?? s.assignment ?? "-";
+        const mid = edited.midterm ?? s.midterm ?? "-";
+        const fin = edited.final ?? s.final ?? "-";
+        const grade = edited.grade ?? s.grade ?? "Waiting";
+        return `${s.studentId},"${s.name}",${s.email},${att},${asg},${mid},${fin},${grade}`;
+      })
+    ].join("\n");
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `students_${selectedCourse}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const editCount = Object.keys(editedRows).length;
 
   return (
@@ -211,7 +239,7 @@ export default function TeacherStudentList() {
                 บันทึก ({editCount})
               </Button>
             )}
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button variant="outline" className="flex items-center gap-2" onClick={handleExport}>
               <Download size={16} />
               ส่งออก
             </Button>

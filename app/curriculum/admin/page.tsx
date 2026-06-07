@@ -101,7 +101,7 @@ export default function AdminCurriculum() {
   }, [curriculumResponse]);
 
   const plans = localPlans;
-  const departmentName = curriculumResponse?.data?.department || "วิศวกรรมคอมพิวเตอร์";
+  const departmentName = curriculumResponse?.data?.department || "วิทยาการคอมพิวเตอร์";
 
   const currentPlans = plans.filter((p) => p.year === selectedYear);
   const totalCredits = plans.reduce((sum, p) => sum + p.courses.reduce((s, c) => s + c.credits, 0), 0);
@@ -250,7 +250,7 @@ export default function AdminCurriculum() {
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <Card className="p-4 border border-slate-200">
             <p className="text-xs text-slate-600">หลักสูตร</p>
-            <p className="text-lg font-bold text-slate-900">{curriculumResponse?.data?.curriculumName || 'วิศวกรรมคอมพิวเตอร์'}</p>
+            <p className="text-lg font-bold text-slate-900">{curriculumResponse?.data?.curriculumName || 'วิทยาการคอมพิวเตอร์'}</p>
           </Card>
           <Card className="p-4 border border-slate-200">
             <p className="text-xs text-slate-600">ระยะเวลา</p>
